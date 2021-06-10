@@ -66,9 +66,9 @@ func wpAdd(c echo.Context) error {
 	}
 
 	// check if user exists or not. If not then create a user with home directory
-	user, err := user.Lookup(wp.UserName)
+	_, err := user.Lookup(wp.UserName)
 	if err != nil {
-		exec.Command("/bin/bash", "-c", fmt.Sprintf("useradd --shell /bin/bash --create-home %s", user.Username)).Output()
+		exec.Command("/bin/bash", "-c", fmt.Sprintf("useradd --shell /bin/bash --create-home %s", wp.UserName)).Output()
 	}
 
 	// Assign path of home directory to a variable
