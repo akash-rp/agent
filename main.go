@@ -94,7 +94,7 @@ func wpAdd(c echo.Context) error {
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("mkdir %s", path)).Output()
 	_, err = exec.Command("/bin/bash", "-c", "chown %s:%s %s", wp.UserName, wp.UserName, path).Output()
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, err)
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 	// Create random number to concate with appName for prevention of Duplicity. Create rand password for DB password and assign them to DB struct
 	randInt, _ := password.Generate(5, 5, 0, false, true)
