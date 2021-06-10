@@ -92,7 +92,10 @@ func wpAdd(c echo.Context) error {
 
 	path = fmt.Sprintf("/home/%s/%s", wp.UserName, wp.AppName)
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("mkdir %s", path)).Output()
-
+	_, err = exec.Command("/bin/bash", "-c", "chown %s:%s %s", wp.UserName, wp.UserName, path).Output()
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err)
+	}
 	// Create random number to concate with appName for prevention of Duplicity. Create rand password for DB password and assign them to DB struct
 	randInt, _ := password.Generate(5, 5, 0, false, true)
 	pass, _ := password.Generate(32, 20, 0, false, false)
@@ -103,7 +106,6 @@ func wpAdd(c echo.Context) error {
 		return err
 	}
 
-	exec.Command("/bin/bash", "-c", "chown %s:%s %s", wp.UserName, wp.UserName, path).Output()
 	// Download wordpress
 	_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %s -i -- /usr/Hosting/wp-cli core download --path=%s", wp.UserName, path)).Output()
 	if err != nil {
