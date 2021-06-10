@@ -103,6 +103,7 @@ func wpAdd(c echo.Context) error {
 		return err
 	}
 
+	exec.Command("/bin/bash", "-c", "chown %s:%s %s", wp.UserName, wp.UserName, path)
 	// Download wordpress
 	_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %s -i -- /usr/Hosting/wp-cli core download --path=%s", wp.UserName, path)).Output()
 	if err != nil {
