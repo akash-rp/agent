@@ -17,6 +17,7 @@ func main() {
 	err := EditNuster()
 
 	e := echo.New()
+	e.Logger.Error(exec.Command("/bin/bash", "-c", "ls /usr/Hosting/").Output())
 	e.Logger.Error(err)
 	e.GET("/serverstats", serverStats)
 	e.POST("/wp/add", wpAdd)
