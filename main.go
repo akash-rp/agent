@@ -132,13 +132,13 @@ func createDatabase(db db) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err)
 	}
-	_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -e 'CREATE USER '%s'@'localhost' IDENTIFIED BY '%s';'", db.user, db.password)).Output()
+	_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -e \"CREATE USER '%s'@'localhost' IDENTIFIED BY '%s';\"", db.user, db.password)).Output()
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "Something went wrong")
+		return echo.NewHTTPError(http.StatusBadRequest, err)
 	}
-	exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -e 'GRANT ALL PRIVILEGES ON %s.* TO '%s'@'localhost';", db.name, db.user)).Output()
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -e \"GRANT ALL PRIVILEGES ON %s.* TO '%s'@'localhost';\"", db.name, db.user)).Output()
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "Grant")
+		return echo.NewHTTPError(http.StatusBadRequest, err)
 	}
 	exec.Command("/bin/bash", "-c", "mysql -e 'FLUSH PRIVILEGES;'").Output()
 	if err != nil {
