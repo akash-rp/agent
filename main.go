@@ -113,7 +113,7 @@ func wpAdd(c echo.Context) error {
 	}
 
 	// Create config file with database crediantls for DB struct
-	exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %s -i -- /usr/Hosting/wp-cli config create --path=%s --dbname=%s --dbuser=%s --dbpass=%s", wp.UserName, path, dbCred.name, dbCred.user, dbCred.password)).Output()
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %s -i -- /usr/Hosting/wp-cli config create --path=%s --dbname=%s --dbuser=%s --dbpass=%s", wp.UserName, path, dbCred.Name, dbCred.User, dbCred.Password)).Output()
 
 	// Install wordpress with data provided by request
 	_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %s -i -- /usr/Hosting/wp-cli core install --path=%s --url=%s --title=%s --admin_user=%s --admin_password=%s --admin_email=%s", wp.UserName, path, wp.Url, wp.Title, wp.AdminUser, wp.AdminPassword, wp.AdminEmail)).Output()
@@ -130,16 +130,16 @@ func wpDelete(c echo.Context) error {
 	return c.String(http.StatusOK, "WP Delete")
 }
 
-func createDatabase(db db) error {
-	_, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -e \"CREATE DATABASE %s;\"", db.name)).Output()
+func createDatabase(d db) error {
+	_, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -e \"CREATE DATABASE %s;\"", d.Name)).Output()
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err)
 	}
-	_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -e \"CREATE USER '%s'@'localhost' IDENTIFIED BY '%s';\"", db.user, db.password)).Output()
+	_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -e \"CREATE USER '%s'@'localhost' IDENTIFIED BY '%s';\"", d.User, d.Password)).Output()
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err)
 	}
-	exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -e \"GRANT ALL PRIVILEGES ON %s.* TO '%s'@'localhost';\"", db.name, db.user)).Output()
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -e \"GRANT ALL PRIVILEGES ON %s.* TO '%s'@'localhost';\"", d.Name, d.User)).Output()
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err)
 	}
@@ -177,7 +177,7 @@ type wpadd struct {
 }
 
 type db struct {
-	name     string
-	user     string
-	password string
+	Name     string `json:"name"`
+	User     string `json:"user"`
+	Password string `json:"password"`
 }
