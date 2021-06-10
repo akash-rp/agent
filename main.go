@@ -130,7 +130,7 @@ func wpDelete(c echo.Context) error {
 func createDatabase(db db) error {
 	ryr, err := exec.Command(fmt.Sprintf("mysql -e 'CREATE DATABASE %s;'", db.name)).Output()
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, err, ryr)
+		return echo.NewHTTPError(http.StatusBadRequest, ryr)
 	}
 	_, err = exec.Command(fmt.Sprintf("mysql -e 'CREATE USER %s@localhost IDENTIFIED BY %s;'", db.user, db.password)).Output()
 	if err != nil {
