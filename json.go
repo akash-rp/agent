@@ -92,7 +92,7 @@ backend %s
 	}
 
 	// the WriteFile method returns an error if unsuccessful
-	err = ioutil.WriteFile("hosting.cfg", []byte(conf), 0777)
+	err = ioutil.WriteFile("/opt/hosting.cfg", []byte(conf), 0777)
 	// handle this error
 	if err != nil {
 		// print it out
