@@ -122,7 +122,7 @@ func wpAdd(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "Failed to install wordpress")
 	}
 
-	return c.JSON(http.StatusOK, wp)
+	return c.JSON(http.StatusOK, dbCred)
 
 }
 
