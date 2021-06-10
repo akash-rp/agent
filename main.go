@@ -104,16 +104,16 @@ func wpAdd(c echo.Context) error {
 	}
 
 	// Download wordpress
-	_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %s -i -- ./wp-cli core download --path=%s", wp.UserName, path)).Output()
+	_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %s -i -- /usr/Hosting/wp-cli core download --path=%s", wp.UserName, path)).Output()
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Failed to download wordpress")
 	}
 
 	// Create config file with database crediantls for DB struct
-	exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %s -i -- ./wp-cli config create --path=%s --dbname=%s --dbuser=%s --dbpass=%s", wp.UserName, path, dbCred.name, dbCred.user, dbCred.password)).Output()
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %s -i -- /usr/Hosting/wp-cli config create --path=%s --dbname=%s --dbuser=%s --dbpass=%s", wp.UserName, path, dbCred.name, dbCred.user, dbCred.password)).Output()
 
 	// Install wordpress with data provided by request
-	_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %s -i -- ./wp-cli core install --path=%s --url=%s --title=%s --admin_user=%s --admin_password=%s --admin_email=%s", wp.UserName, path, wp.Url, wp.Title, wp.AdminUser, wp.AdminPassword, wp.AdminEmail)).Output()
+	_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %s -i -- /usr/Hosting/wp-cli core install --path=%s --url=%s --title=%s --admin_user=%s --admin_password=%s --admin_email=%s", wp.UserName, path, wp.Url, wp.Title, wp.AdminUser, wp.AdminPassword, wp.AdminEmail)).Output()
 
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Failed to install wordpress")
