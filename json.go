@@ -96,7 +96,7 @@ backend %s
 	// handle this error
 	if err != nil {
 		// print it out
-		fmt.Println(err)
+		return err
 	}
 
 	return nil

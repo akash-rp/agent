@@ -14,8 +14,10 @@ import (
 )
 
 func main() {
-	EditNuster()
+	err := EditNuster()
+
 	e := echo.New()
+	e.Logger.Error(err)
 	e.GET("/serverstats", serverStats)
 	e.POST("/wp/add", wpAdd)
 	e.POST("/wp/delete", wpDelete)
