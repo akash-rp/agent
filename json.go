@@ -90,7 +90,13 @@ backend %s
     http-response set-header x-cache MISS unless { nuster.cache.hit }
     server s1 0.0.0.0:8088`, backend.Name, backend.Cache)
 	}
-
+	conf = conf + `
+backend nocache
+    http-response set-header x-cache BYPASS
+    server s2 0.0.0.0:8088
+backend static
+    http-response set-header x-type STATIC
+    server s2 0.0.0.0:8088`
 	// the WriteFile method returns an error if unsuccessful
 	err = ioutil.WriteFile("/opt/hosting.cfg", []byte(conf), 0777)
 	// handle this error
