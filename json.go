@@ -12,7 +12,7 @@ import (
 func EditNuster() error {
 
 	// read file
-	data, err := ioutil.ReadFile("./config.json")
+	data, err := ioutil.ReadFile("/usr/Hosting/config.json")
 	if err != nil {
 		return echo.NewHTTPError(404, "Config file not found")
 	}
