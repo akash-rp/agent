@@ -92,7 +92,7 @@ func wpAdd(c echo.Context) error {
 
 	path = fmt.Sprintf("/home/%s/%s", wp.UserName, wp.AppName)
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("mkdir %s", path)).Output()
-	_, err = exec.Command("/bin/bash", "-c", "chown %s:%s %s", wp.UserName, wp.UserName, path).Output()
+	_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("chown %s:%s %s", wp.UserName, wp.UserName, path)).Output()
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
