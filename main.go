@@ -128,17 +128,17 @@ func wpDelete(c echo.Context) error {
 }
 
 func createDatabase(db db) error {
-	ryr, err := exec.Command(fmt.Sprintf("mysql -e \"CREATE DATABASE %s;\"", db.name)).Output()
+	ryr, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -e \"CREATE DATABASE %s;\"", db.name)).Output()
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, ryr)
 	}
-	_, err = exec.Command(fmt.Sprintf("mysql -e 'CREATE USER %s@localhost IDENTIFIED BY %s;'", db.user, db.password)).Output()
+	_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -e 'CREATE USER %s@localhost IDENTIFIED BY %s;'", db.user, db.password)).Output()
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Cannot create User")
 	}
-	exec.Command(fmt.Sprintf("mysql -e 'GRANT ALL PRIVILEGES ON %s.* TO '%s'@'localhost';", db.name, db.user)).Output()
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -e 'GRANT ALL PRIVILEGES ON %s.* TO '%s'@'localhost';", db.name, db.user)).Output()
 
-	exec.Command("mysql -e 'FLUSH PRIVILEGES;'").Output()
+	exec.Command("/bin/bash", "-c", "mysql -e 'FLUSH PRIVILEGES;'").Output()
 
 	return nil
 }
