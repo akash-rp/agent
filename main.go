@@ -98,7 +98,7 @@ func wpAdd(c echo.Context) error {
 	}
 	// Create random number to concate with appName for prevention of Duplicity. Create rand password for DB password and assign them to DB struct
 	randInt, _ := password.Generate(5, 5, 0, false, true)
-	pass, _ := password.Generate(32, 20, 0, false, false)
+	pass, _ := password.Generate(32, 20, 1, false, true)
 	dbCred := db{fmt.Sprintf("%s_%s", wp.AppName, randInt), fmt.Sprintf("%s_%s", wp.AppName, randInt), pass}
 
 	err = createDatabase(dbCred)
