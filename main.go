@@ -14,10 +14,12 @@ import (
 )
 
 func main() {
+	EditNuster()
 	e := echo.New()
 	e.GET("/serverstats", serverStats)
 	e.POST("/wp/add", wpAdd)
 	e.POST("/wp/delete", wpDelete)
+	e.GET("/hositng", hosting)
 	e.Logger.Fatal(e.Start(":8081"))
 }
 
@@ -136,6 +138,14 @@ func createDatabase(db db) error {
 	exec.Command("mysql -e 'FLUSH PRIVILEGES;'").Output()
 
 	return nil
+}
+
+func hosting(c echo.Context) error {
+	err := EditNuster()
+	if err != nil {
+		return err
+	}
+	return c.String(http.StatusOK, "Success")
 }
 
 type systemstats struct {

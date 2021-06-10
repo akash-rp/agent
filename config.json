@@ -1,0 +1,22 @@
+{
+  "global": {
+    "dataSize": 100,
+    "maxConnection": 50000
+  },
+  "defaults": {
+    "timeout": {
+      "connect": 30,
+      "client": 30,
+      "server": 30
+    }
+  },
+  "sites": [
+    {
+      "name": "akashrp",
+      "domain": ["akashrp.com", "www.akashrp.me"],
+      "ssl": 0,
+      "cache": "off",
+      "redirect": false
+    }
+  ]
+}
