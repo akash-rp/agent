@@ -16,13 +16,9 @@ import (
 func main() {
 	err := EditNuster()
 	e := echo.New()
-	e.Logger.Fatal(err)
-	e.Logger.Fatal("Hai akash")
 	if err != nil {
-		e.Logger.Error(err)
+		e.Logger.Fatal(err)
 	}
-	e.Logger.Error(exec.Command("/bin/bash", "-c", "ls /usr/Hosting/").Output())
-	e.Logger.Error(err)
 	e.GET("/serverstats", serverStats)
 	e.POST("/wp/add", wpAdd)
 	e.POST("/wp/delete", wpDelete)
