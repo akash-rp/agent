@@ -102,7 +102,7 @@ backend static
 	// handle this error
 	if err != nil {
 		// print it out
-		return err
+		return echo.NewHTTPError(404, err)
 	}
 
 	return nil
