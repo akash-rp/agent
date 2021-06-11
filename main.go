@@ -121,6 +121,10 @@ func wpAdd(c echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Failed to install wordpress")
 	}
+	err = editLsws(*wp)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Cannot create lsws config file")
+	}
 
 	return c.JSON(http.StatusOK, dbCred)
 
