@@ -15,8 +15,10 @@ import (
 
 func main() {
 	err := EditNuster()
-
 	e := echo.New()
+	if err != nil {
+		e.Logger.Fatal(err)
+	}
 	e.Logger.Error(exec.Command("/bin/bash", "-c", "ls /usr/Hosting/").Output())
 	e.Logger.Error(err)
 	e.GET("/serverstats", serverStats)
