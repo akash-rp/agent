@@ -16,8 +16,10 @@ import (
 func main() {
 	err := EditNuster()
 	e := echo.New()
+	e.Logger.Error(err)
+	e.Logger.Error("Hai akash")
 	if err != nil {
-		e.Logger.Fatal(err)
+		e.Logger.Error(err)
 	}
 	e.Logger.Error(exec.Command("/bin/bash", "-c", "ls /usr/Hosting/").Output())
 	e.Logger.Error(err)
