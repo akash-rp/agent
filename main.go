@@ -16,8 +16,8 @@ import (
 func main() {
 	err := EditNuster()
 	e := echo.New()
-	e.Logger.Error(err)
-	e.Logger.Error("Hai akash")
+	e.Logger.Fatal(err)
+	e.Logger.Fatal("Hai akash")
 	if err != nil {
 		e.Logger.Error(err)
 	}
