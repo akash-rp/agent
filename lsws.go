@@ -25,7 +25,7 @@ virtualhost %s {
     setUIDMode 0
 }`,
 		wp.AppName, wp.UserName, wp.AppName, wp.AppName)
-	if err := os.Chdir("/usr/local/lsws/conf"); err != nil {
+	if err := os.Chdir("/usr/local/lsws/conf/vhosts"); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Changing directory error 1")
 	}
 	if err := ioutil.WriteFile(fmt.Sprintf("%s.conf", wp.AppName), []byte(first), 0750); err != nil {
@@ -81,7 +81,7 @@ rewrite {
 enable 1
 autoLoadHtaccess 1
 }`, wp.UserName, wp.AppName, wp.UserName, wp.AppName, wp.AppName)
-	if err := os.Chdir(fmt.Sprintf("/usr/local/lsws/conf/%s.d", wp.AppName)); err != nil {
+	if err := os.Chdir(fmt.Sprintf("/usr/local/lsws/conf/vhosts/%s.d", wp.AppName)); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Error 6")
 	}
 	if err := ioutil.WriteFile("main.conf", []byte(second), 0750); err != nil {
@@ -96,7 +96,7 @@ autoLoadHtaccess 1
 	if err := os.Chown("handler", userID, grpId); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Error 10")
 	}
-	if err := os.Chdir(fmt.Sprintf("/usr/local/lsws/conf/%s.d/handler", wp.AppName)); err != nil {
+	if err := os.Chdir(fmt.Sprintf("/usr/local/lsws/conf/vhosts/%s.d/handler", wp.AppName)); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Error 11")
 	}
 	third := fmt.Sprintf(`
