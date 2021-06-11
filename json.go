@@ -100,12 +100,11 @@ backend static
 	// the WriteFile method returns an error if unsuccessful
 	err = ioutil.WriteFile("/opt/hosting.cfg", []byte(conf), 0777)
 	// handle this error
-	return echo.ErrBadGateway
-	// if err != nil {
-	// 	// print it out
-	// 	return echo.NewHTTPError(404, err)
-	// }
+	if err != nil {
+		// print it out
+		return echo.NewHTTPError(404, err)
+	}
 
-	// return nil
+	return nil
 
 }
