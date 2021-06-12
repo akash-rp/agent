@@ -147,11 +147,12 @@ func wpDelete(c echo.Context) error {
 	lsByte, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("ls %s", path)).Output()
 	lsStirng := string(lsByte)
 	lsSlice := strings.Split(lsStirng, "\n")
+	lsSlice = lsSlice[:len(lsSlice)-1]
 	shouldDelete := true
 	for _, ls := range lsSlice {
 		if ls != "logs" {
 			shouldDelete = false
-			break
+			continue
 		}
 	}
 	if shouldDelete {
