@@ -89,8 +89,8 @@ func wpAdd(c echo.Context) error {
 			return echo.NewHTTPError(http.StatusBadRequest, "App Name exists")
 		}
 	}
-
-	path = fmt.Sprintf("/home/%s/%s", wp.UserName, wp.AppName)
+	fmt.
+		path = fmt.Sprintf("/home/%s/%s", wp.UserName, wp.AppName)
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("mkdir %s", path)).Output()
 	_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("chown %s:%s %s", wp.UserName, wp.UserName, path)).Output()
 	if err != nil {
@@ -113,8 +113,10 @@ func wpAdd(c echo.Context) error {
 	}
 
 	// Create config file with database crediantls for DB struct
-	exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %s -i -- /usr/Hosting/wp-cli config create --path=%s --dbname=%s --dbuser=%s --dbpass=%s", wp.UserName, path, dbCred.Name, dbCred.User, dbCred.Password)).Output()
-
+	_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %s -i -- /usr/Hosting/wp-cli config create --path=%s --dbname=%s --dbuser=%s --dbpass=%s", wp.UserName, path, dbCred.Name, dbCred.User, dbCred.Password)).Output()
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
 	// Install wordpress with data provided by request
 	_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %s -i -- /usr/Hosting/wp-cli core install --path=%s --url=%s --title=%s --admin_user=%s --admin_password=%s --admin_email=%s", wp.UserName, path, wp.Url, wp.Title, wp.AdminUser, wp.AdminPassword, wp.AdminEmail)).Output()
 
@@ -156,7 +158,7 @@ func wpDelete(c echo.Context) error {
 		exec.Command("/bin/bash", "-c", fmt.Sprintf("userdel -f -r %s", wp.UserName)).Output()
 
 	}
-
+	fmt.p
 	return c.String(http.StatusOK, "Delete success")
 }
 
