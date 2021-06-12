@@ -158,7 +158,7 @@ func wpDelete(c echo.Context) error {
 		exec.Command("/bin/bash", "-c", fmt.Sprintf("userdel -f -r %s", wp.UserName)).Output()
 
 	}
-	fmt.P
+
 	return c.String(http.StatusOK, "Delete success")
 }
 
