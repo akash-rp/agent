@@ -89,8 +89,8 @@ func wpAdd(c echo.Context) error {
 			return echo.NewHTTPError(http.StatusBadRequest, "App Name exists")
 		}
 	}
-	fmt.
-		path = fmt.Sprintf("/home/%s/%s", wp.UserName, wp.AppName)
+
+	path = fmt.Sprintf("/home/%s/%s", wp.UserName, wp.AppName)
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("mkdir %s", path)).Output()
 	_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("chown %s:%s %s", wp.UserName, wp.UserName, path)).Output()
 	if err != nil {
@@ -158,7 +158,7 @@ func wpDelete(c echo.Context) error {
 		exec.Command("/bin/bash", "-c", fmt.Sprintf("userdel -f -r %s", wp.UserName)).Output()
 
 	}
-	fmt.p
+	fmt.P
 	return c.String(http.StatusOK, "Delete success")
 }
 
