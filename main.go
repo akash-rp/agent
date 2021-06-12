@@ -131,7 +131,33 @@ func wpAdd(c echo.Context) error {
 }
 
 func wpDelete(c echo.Context) error {
-	return c.String(http.StatusOK, "WP Delete")
+	wp := new(wpdelete)
+	c.Bind(&wp)
+	path := fmt.Sprintf("/home/%s/%s", wp.UserName, wp.AppName)
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("rm -rf %s", path)).Output()
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -e \"DROP DATABASE %s;\"", wp.DbName)).Output()
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -e \"DROP USER '%s'@'localhost';\"", wp.DbUser)).Output()
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("rm /usr/local/lsws/conf/vhosts/%s.conf", wp.AppName)).Output()
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("rm -rf /usr/local/lsws/conf/vhosts/%s.d", wp.AppName)).Output()
+	exec.Command("/bin/bash", "-c", "killall lsphp").Output()
+	exec.Command("/bin/bash", "-c", "service lsws restart").Output()
+	path = fmt.Sprintf("/home/%s", wp.UserName)
+	lsByte, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("ls %s", path)).Output()
+	lsStirng := string(lsByte)
+	lsSlice := strings.Split(lsStirng, "\n")
+	shouldDelete := true
+	for _, ls := range lsSlice {
+		if ls != "logs" {
+			shouldDelete = false
+			break
+		}
+	}
+	if shouldDelete {
+		exec.Command("/bin/bash", "-c", fmt.Sprintf("userdel -f -r %s", wp.UserName)).Output()
+
+	}
+
+	return c.String(http.StatusOK, "Delete success")
 }
 
 func createDatabase(d db) error {
@@ -184,4 +210,11 @@ type db struct {
 	Name     string `json:"name"`
 	User     string `json:"user"`
 	Password string `json:"password"`
+}
+
+type wpdelete struct {
+	AppName  string `json:"appName"`
+	UserName string `json:"userName"`
+	DbName   string `json:"dbName"`
+	DbUser   string `json:"DbUser"`
 }
