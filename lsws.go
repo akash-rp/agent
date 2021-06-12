@@ -90,13 +90,13 @@ autoLoadHtaccess 1
 	if err := os.Chown("main.conf", userID, grpId); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Error 8")
 	}
-	if err := os.MkdirAll("handler", 0750); err != nil {
+	if err := os.MkdirAll("handlers", 0750); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Error 9")
 	}
-	if err := os.Chown("handler", userID, grpId); err != nil {
+	if err := os.Chown("handlers", userID, grpId); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Error 10")
 	}
-	if err := os.Chdir(fmt.Sprintf("/usr/local/lsws/conf/vhosts/%s.d/handler", wp.AppName)); err != nil {
+	if err := os.Chdir(fmt.Sprintf("/usr/local/lsws/conf/vhosts/%s.d/handlers", wp.AppName)); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Error 11")
 	}
 	third := fmt.Sprintf(`
