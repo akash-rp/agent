@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -98,7 +100,7 @@ func wpAdd(c echo.Context) error {
 	}
 	// Create random number to concate with appName for prevention of Duplicity. Create rand password for DB password and assign them to DB struct
 	randInt, _ := password.Generate(5, 5, 0, false, true)
-	pass, _ := password.Generate(32, 20, 1, false, true)
+	pass, _ := password.Generate(32, 20, 0, false, true)
 	dbCred := db{fmt.Sprintf("%s_%s", wp.AppName, randInt), fmt.Sprintf("%s_%s", wp.AppName, randInt), pass}
 
 	err = createDatabase(dbCred)
@@ -109,18 +111,24 @@ func wpAdd(c echo.Context) error {
 	// Download wordpress
 	_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %s -i -- /usr/Hosting/wp-cli core download --path=%s", wp.UserName, path)).Output()
 	if err != nil {
+		write, _ := json.MarshalIndent(d, "", "  ")
+		ioutil.WriteFile("/usr/Hosting/error.log", write, 0777)
 		return echo.NewHTTPError(http.StatusBadRequest, "Wordpress Download Error")
 	}
 
 	// Create config file with database crediantls for DB struct
 	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %s -i -- /usr/Hosting/wp-cli config create --path=%s --dbname=%s --dbuser=%s --dbpass=%s", wp.UserName, path, dbCred.Name, dbCred.User, dbCred.Password)).CombinedOutput()
 	if err != nil {
+		write, _ := json.MarshalIndent(d, "", "  ")
+		ioutil.WriteFile("/usr/Hosting/error.log", write, 0777)
 		return echo.NewHTTPError(http.StatusBadRequest, string(out))
 	}
 	// Install wordpress with data provided by request
 	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %s -i -- /usr/Hosting/wp-cli core install --path=%s --url=%s --title=%s --admin_user=%s --admin_password=%s --admin_email=%s", wp.UserName, path, wp.Url, wp.Title, wp.AdminUser, wp.AdminPassword, wp.AdminEmail)).CombinedOutput()
 
 	if err != nil {
+		write, _ := json.MarshalIndent(d, "", "  ")
+		ioutil.WriteFile("/usr/Hosting/error.log", write, 0777)
 		return echo.NewHTTPError(http.StatusBadRequest, string(out))
 	}
 	err = editLsws(*wp)
@@ -188,18 +196,26 @@ func wpDelete(c echo.Context) error {
 func createDatabase(d db) error {
 	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -e \"CREATE DATABASE %s;\"", d.Name)).CombinedOutput()
 	if err != nil {
+		write, _ := json.MarshalIndent(d, "", "  ")
+		ioutil.WriteFile("/usr/Hosting/error.log", write, 0777)
 		return echo.NewHTTPError(http.StatusBadRequest, string(out))
 	}
 	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -e \"CREATE USER '%s'@'localhost' IDENTIFIED BY '%s';\"", d.User, d.Password)).CombinedOutput()
 	if err != nil {
+		write, _ := json.MarshalIndent(d, "", "  ")
+		ioutil.WriteFile("/usr/Hosting/error.log", write, 0777)
 		return echo.NewHTTPError(http.StatusBadRequest, string(out))
 	}
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -e \"GRANT ALL PRIVILEGES ON %s.* TO '%s'@'localhost';\"", d.Name, d.User)).CombinedOutput()
 	if err != nil {
+		write, _ := json.MarshalIndent(d, "", "  ")
+		ioutil.WriteFile("/usr/Hosting/error.log", write, 0777)
 		return echo.NewHTTPError(http.StatusBadRequest, err)
 	}
 	exec.Command("/bin/bash", "-c", "mysql -e 'FLUSH PRIVILEGES;'").Output()
 	if err != nil {
+		write, _ := json.MarshalIndent(d, "", "  ")
+		ioutil.WriteFile("/usr/Hosting/error.log", write, 0777)
 		return echo.NewHTTPError(http.StatusBadRequest, "FLush")
 	}
 	return nil
