@@ -63,7 +63,7 @@ frontend nonssl
 			hosts = append(hosts, fmt.Sprintf("!host_%s", host.Name))
 		}
 		conf = conf + fmt.Sprintf(`
-	http-request reject if %s`, strings.Join(hosts, " || "))
+	http-request reject if %s`, strings.Join(hosts, " "))
 	}
 
 	conf = conf + `
