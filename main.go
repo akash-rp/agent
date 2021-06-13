@@ -111,7 +111,7 @@ func wpAdd(c echo.Context) error {
 	// Download wordpress
 	_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %s -i -- /usr/Hosting/wp-cli core download --path=%s", wp.UserName, path)).Output()
 	if err != nil {
-		write, _ := json.MarshalIndent(d, "", "  ")
+		write, _ := json.MarshalIndent(dbCred, "", "  ")
 		ioutil.WriteFile("/usr/Hosting/error.log", write, 0777)
 		return echo.NewHTTPError(http.StatusBadRequest, "Wordpress Download Error")
 	}
@@ -119,7 +119,7 @@ func wpAdd(c echo.Context) error {
 	// Create config file with database crediantls for DB struct
 	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %s -i -- /usr/Hosting/wp-cli config create --path=%s --dbname=%s --dbuser=%s --dbpass=%s", wp.UserName, path, dbCred.Name, dbCred.User, dbCred.Password)).CombinedOutput()
 	if err != nil {
-		write, _ := json.MarshalIndent(d, "", "  ")
+		write, _ := json.MarshalIndent(dbCred, "", "  ")
 		ioutil.WriteFile("/usr/Hosting/error.log", write, 0777)
 		return echo.NewHTTPError(http.StatusBadRequest, string(out))
 	}
@@ -127,7 +127,7 @@ func wpAdd(c echo.Context) error {
 	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %s -i -- /usr/Hosting/wp-cli core install --path=%s --url=%s --title=%s --admin_user=%s --admin_password=%s --admin_email=%s", wp.UserName, path, wp.Url, wp.Title, wp.AdminUser, wp.AdminPassword, wp.AdminEmail)).CombinedOutput()
 
 	if err != nil {
-		write, _ := json.MarshalIndent(d, "", "  ")
+		write, _ := json.MarshalIndent(dbCred, "", "  ")
 		ioutil.WriteFile("/usr/Hosting/error.log", write, 0777)
 		return echo.NewHTTPError(http.StatusBadRequest, string(out))
 	}
