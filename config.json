@@ -13,7 +13,14 @@
   "sites": [
     {
       "name": "akashrp",
-      "domain": ["akashrp.com", "www.akashrp.me"],
+      "domain": ["akashrp.me", "www.akashrp.me"],
+      "ssl": 0,
+      "cache": "off",
+      "redirect": false
+    },
+    {
+      "name": "Kashu",
+      "domain": ["kashu.com"],
       "ssl": 0,
       "cache": "off",
       "redirect": false

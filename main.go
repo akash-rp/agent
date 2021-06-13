@@ -14,7 +14,7 @@ import (
 )
 
 func main() {
-	err := EditNuster()
+	err := configNuster()
 	e := echo.New()
 	if err != nil {
 		e.Logger.Fatal(err)
@@ -128,6 +128,15 @@ func wpAdd(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "Cannot create lsws config file")
 	}
 
+	err = addSiteToJSON(*wp)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Cannot add site to config file")
+	}
+
+	err = configNuster()
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Cannot add site to hosting.cfg file")
+	}
 	return c.JSON(http.StatusOK, dbCred)
 
 }
@@ -159,6 +168,15 @@ func wpDelete(c echo.Context) error {
 		exec.Command("/bin/bash", "-c", fmt.Sprintf("userdel -f -r %s", wp.UserName)).Output()
 
 	}
+	err := deleteSiteFromJSON(*wp)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Cannot delete from Json file")
+	}
+
+	err = configNuster()
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Cannot config nuster file")
+	}
 
 	return c.String(http.StatusOK, "Delete success")
 }
@@ -184,7 +202,7 @@ func createDatabase(d db) error {
 }
 
 func hosting(c echo.Context) error {
-	err := EditNuster()
+	err := configNuster()
 	if err != nil {
 		return err
 	}

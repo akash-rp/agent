@@ -9,41 +9,12 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-func EditNuster() error {
+func configNuster() error {
 
 	// read file
 	data, err := ioutil.ReadFile("/usr/Hosting/config.json")
 	if err != nil {
 		return echo.NewHTTPError(404, "Config file not found")
-	}
-
-	// define data structure
-	type Global struct {
-		Datasize int `json:"dataSize"`
-		Maxconn  int `json:"maxConnection"`
-	}
-	type Timeout struct {
-		Connect int `json:"connect"`
-		Client  int `json:"client"`
-		Server  int `json:"server"`
-	}
-
-	type Default struct {
-		Timeout Timeout `json:"timeout"`
-	}
-
-	type Site struct {
-		Name     string   `json:"name"`
-		Domain   []string `json:"domain"`
-		SSL      int      `json:"ssl"`
-		Cache    string   `json:"cache"`
-		Redirect bool     `json:"redirect"`
-	}
-
-	type Config struct {
-		Global  Global  `json:"global"`
-		Default Default `json:"defaults"`
-		Sites   []Site  `json:"sites"`
 	}
 
 	// json data
@@ -59,13 +30,26 @@ func EditNuster() error {
 
 	conf = conf + fmt.Sprintf("global\n\tnuster cache on data-size %dm\n\tmaster-worker\n\tmaxconn %d\n", obj.Global.Datasize, obj.Global.Maxconn)
 
-	conf = conf + fmt.Sprintf("defaults\n\tmode http\n\ttimeout connect %ds\n\ttimeout client %ds\n\ttimeout server %ds\n", obj.Default.Timeout.Connect, obj.Default.Timeout.Client, obj.Default.Timeout.Server)
+	conf = conf + fmt.Sprintf("defaults\n\tmode http\n\ttimeout connect %ds\n\ttimeout client %ds\n\ttimeout server %ds", obj.Default.Timeout.Connect, obj.Default.Timeout.Client, obj.Default.Timeout.Server)
 
-	conf = conf + `frontend nonssl
+	if len(obj.Sites) == 0 {
+		conf = conf + `
+http-errors myerrors
+    errorfile 404 /usr/Hosting/errors/404.http`
+	}
+
+	conf = conf + `
+frontend nonssl
     bind *:80`
 	for _, frontend := range obj.Sites {
 		conf = conf + fmt.Sprintf(`
 	acl host_%s hdr(host) -i %s`, frontend.Name, strings.Trim(fmt.Sprint(frontend.Domain), "[]"))
+	}
+
+	if len(obj.Sites) == 0 {
+		conf = conf + `
+	errorfiles myerrors
+    http-response return status 404 default-errorfiles`
 	}
 
 	conf = conf + `
@@ -78,6 +62,15 @@ func EditNuster() error {
 	for _, frontend := range obj.Sites {
 		conf = conf + fmt.Sprintf(`
 	use_backend %s if host_%s`, frontend.Name, frontend.Name)
+	}
+
+	if len(obj.Sites) > 0 {
+		hosts := []string{}
+		for _, host := range obj.Sites {
+			hosts = append(hosts, fmt.Sprintf("!host_%s", host.Name))
+		}
+		conf = conf + fmt.Sprintf(`
+	http-request reject if %s`, strings.Join(hosts, " || "))
 	}
 
 	for _, backend := range obj.Sites {
@@ -107,4 +100,84 @@ backend static
 
 	return nil
 
+}
+
+func addSiteToJSON(wp wpadd) error {
+	// read file
+	data, err := ioutil.ReadFile("/usr/Hosting/config.json")
+	if err != nil {
+		return echo.NewHTTPError(404, "Config file not found")
+	}
+
+	// json data
+	var obj Config
+
+	// unmarshall it
+	err = json.Unmarshal(data, &obj)
+	if err != nil {
+		return echo.NewHTTPError(400, "JSON data error")
+	}
+
+	newSite := Site{Name: wp.AppName, SSL: 0, Domain: []string{wp.Url}, Cache: "off", Redirect: false}
+	obj.Sites = append(obj.Sites, newSite)
+	back, _ := json.MarshalIndent(obj, "", "  ")
+	ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
+	return nil
+}
+
+func deleteSiteFromJSON(wp wpdelete) error {
+	data, err := ioutil.ReadFile("/usr/Hosting/config.json")
+	if err != nil {
+		return echo.NewHTTPError(404, "Config file not found")
+	}
+
+	// json data
+	var obj Config
+
+	// unmarshall it
+	err = json.Unmarshal(data, &obj)
+	if err != nil {
+		return echo.NewHTTPError(400, "JSON data error")
+	}
+
+	for i, site := range obj.Sites {
+		if site.Name == wp.AppName {
+			RemoveIndex(obj.Sites, i)
+		}
+	}
+
+	return nil
+}
+
+func RemoveIndex(s []Site, index int) []Site {
+	return append(s[:index], s[index+1:]...)
+}
+
+// define data structure
+type Global struct {
+	Datasize int `json:"dataSize"`
+	Maxconn  int `json:"maxConnection"`
+}
+type Timeout struct {
+	Connect int `json:"connect"`
+	Client  int `json:"client"`
+	Server  int `json:"server"`
+}
+
+type Default struct {
+	Timeout Timeout `json:"timeout"`
+}
+
+type Site struct {
+	Name     string   `json:"name"`
+	Domain   []string `json:"domain"`
+	SSL      int      `json:"ssl"`
+	Cache    string   `json:"cache"`
+	Redirect bool     `json:"redirect"`
+}
+
+type Config struct {
+	Global  Global  `json:"global"`
+	Default Default `json:"defaults"`
+	Sites   []Site  `json:"sites"`
 }
