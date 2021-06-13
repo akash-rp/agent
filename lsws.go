@@ -67,7 +67,7 @@ indexFiles index.php index.html
 }
 
 scripthandler {
-add lsapi:lsphp php
+add lsapi:lsphp_%s php
 }
 
 include /usr/local/lsws/conf/vhosts/%s.d/handlers/*.conf
@@ -80,7 +80,7 @@ expires  {
 rewrite {
 enable 1
 autoLoadHtaccess 1
-}`, wp.UserName, wp.AppName, wp.UserName, wp.AppName, wp.AppName)
+}`, wp.UserName, wp.AppName, wp.UserName, wp.AppName, wp.UserName, wp.AppName)
 	if err := os.Chdir(fmt.Sprintf("/usr/local/lsws/conf/vhosts/%s.d", wp.AppName)); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Error 6")
 	}
@@ -100,7 +100,7 @@ autoLoadHtaccess 1
 		return echo.NewHTTPError(http.StatusBadRequest, "Error 11")
 	}
 	third := fmt.Sprintf(`
-extprocessor lsphp {
+extprocessor lsphp_%s {
 type lsapi
 address uds://tmp/lshttpd/lsphp-%s.sock
 maxConns 35
@@ -122,7 +122,7 @@ memSoftLimit 2047M
 memHardLimit 2047M
 procSoftLimit 400
 procHardLimit 500
-}`, wp.AppName, wp.UserName, wp.UserName)
+}`, wp.UserName, wp.AppName, wp.UserName, wp.UserName)
 
 	if err := ioutil.WriteFile("extphp.conf", []byte(third), 0750); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Error 12")
