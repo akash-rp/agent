@@ -46,6 +46,7 @@ virtualhost %s {
 	}
 	second := fmt.Sprintf(`
 docRoot $VH_ROOT/
+VhDomain %s
 enableGzip 1
 
 errorlog /home/%s/logs/%s_error.log {
@@ -80,7 +81,7 @@ expires  {
 rewrite {
 enable 1
 autoLoadHtaccess 1
-}`, wp.UserName, wp.AppName, wp.UserName, wp.AppName, wp.UserName, wp.AppName)
+}`, wp.Url, wp.UserName, wp.AppName, wp.UserName, wp.AppName, wp.UserName, wp.AppName)
 	if err := os.Chdir(fmt.Sprintf("/usr/local/lsws/conf/vhosts/%s.d", wp.AppName)); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Error 6")
 	}
