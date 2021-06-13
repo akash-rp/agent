@@ -138,7 +138,7 @@ func wpAdd(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "Cannot add site to hosting.cfg file")
 	}
 	exec.Command("/bin/bash", "-c", "service hosting stop").Output()
-	exec.Command("bin/bash", "-c", "service hosting start").Output()
+	exec.Command("/bin/bash", "-c", "service hosting start").Output()
 	return c.JSON(http.StatusOK, dbCred)
 
 }
@@ -180,7 +180,7 @@ func wpDelete(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "Cannot config nuster file")
 	}
 	exec.Command("/bin/bash", "-c", "service hosting stop").Output()
-	exec.Command("bin/bash", "-c", "service hosting start").Output()
+	exec.Command("/bin/bash", "-c", "service hosting start").Output()
 
 	return c.String(http.StatusOK, "Delete success")
 }
