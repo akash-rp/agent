@@ -144,10 +144,15 @@ func deleteSiteFromJSON(wp wpdelete) error {
 
 	for i, site := range obj.Sites {
 		if site.Name == wp.AppName {
-			RemoveIndex(obj.Sites, i)
+			obj.Sites = RemoveIndex(obj.Sites, i)
 		}
 	}
 
+	back, err := json.MarshalIndent(obj, "", "  ")
+	err = ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
+	if err != nil {
+		return echo.NewHTTPError(400, "Cannot write to config file")
+	}
 	return nil
 }
 

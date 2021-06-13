@@ -103,19 +103,19 @@ func wpAdd(c echo.Context) error {
 
 	err = createDatabase(dbCred)
 	if err != nil {
-		return err
+		return echo.NewHTTPError(http.StatusBadRequest, "Cannot create database")
 	}
 
 	// Download wordpress
 	_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %s -i -- /usr/Hosting/wp-cli core download --path=%s", wp.UserName, path)).Output()
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, err.Error(), "error")
+		return echo.NewHTTPError(http.StatusBadRequest, "Wordpress Download Error")
 	}
 
 	// Create config file with database crediantls for DB struct
 	_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %s -i -- /usr/Hosting/wp-cli config create --path=%s --dbname=%s --dbuser=%s --dbpass=%s", wp.UserName, path, dbCred.Name, dbCred.User, dbCred.Password)).Output()
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+		return echo.NewHTTPError(http.StatusBadRequest, "Wordpress config create error")
 	}
 	// Install wordpress with data provided by request
 	_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %s -i -- /usr/Hosting/wp-cli core install --path=%s --url=%s --title=%s --admin_user=%s --admin_password=%s --admin_email=%s", wp.UserName, path, wp.Url, wp.Title, wp.AdminUser, wp.AdminPassword, wp.AdminEmail)).Output()
