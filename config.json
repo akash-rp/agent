@@ -10,20 +10,5 @@
       "server": 30
     }
   },
-  "sites": [
-    {
-      "name": "akashrp",
-      "domain": ["akashrp.me", "www.akashrp.me"],
-      "ssl": 0,
-      "cache": "off",
-      "redirect": false
-    },
-    {
-      "name": "Kashu",
-      "domain": ["kashu.com"],
-      "ssl": 0,
-      "cache": "off",
-      "redirect": false
-    }
-  ]
+  "sites": []
 }

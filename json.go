@@ -55,14 +55,7 @@ frontend nonssl
 	conf = conf + `
     acl has_cookie hdr_sub(cookie) wordpress_logged_in
     acl has_path path_sub wp-admin || wp-login
-    acl static_file path_end .js || .css || .png || .jpg || .jpeg || .gif || .ico
-    use_backend nocache if has_path || has_cookie
-    use_backend static if static_file`
-
-	for _, frontend := range obj.Sites {
-		conf = conf + fmt.Sprintf(`
-	use_backend %s if host_%s`, frontend.Name, frontend.Name)
-	}
+    acl static_file path_end .js || .css || .png || .jpg || .jpeg || .gif || .ico`
 
 	if len(obj.Sites) > 0 {
 		hosts := []string{}
@@ -73,15 +66,24 @@ frontend nonssl
 	http-request reject if %s`, strings.Join(hosts, " || "))
 	}
 
-	for _, backend := range obj.Sites {
+	conf = conf + `
+    use_backend nocache if has_path || has_cookie
+    use_backend static if static_file`
+
+	for _, frontend := range obj.Sites {
+		conf = conf + fmt.Sprintf(`
+	use_backend %s if host_%s`, frontend.Name, frontend.Name)
+	}
+
+	for i, backend := range obj.Sites {
 
 		conf = conf + fmt.Sprintf(`
 backend %s
     nuster cache %s
-    nuster rule 200
+    nuster rule r%d
     http-response set-header x-cache HIT if { nuster.cache.hit }
     http-response set-header x-cache MISS unless { nuster.cache.hit }
-    server s1 0.0.0.0:8088`, backend.Name, backend.Cache)
+    server s1 0.0.0.0:8088`, backend.Name, backend.Cache, i)
 	}
 	conf = conf + `
 backend nocache
