@@ -124,7 +124,7 @@ func wpAdd(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, string(out))
 	}
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("touch %s/.htaccess", path)).Output()
-	exec.Command("/bin/bash", "-c", fmt.Sprintf("echo \" %s/.htaccess IN_MODIFY /usr/bin/service lsws restart\" >> /etc/incron.d/sites.txt", path)).Output()
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("echo \" %s/.htaccess IN_MODIFY /usr/sbin/service lsws restart\" >> /etc/incron.d/sites.txt", path)).Output()
 	exec.Command("/bin/bash", "-c", "incrontab /etc/incron.d/sites.txt").Output()
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("chown %s:%s %s/.htaccess", wp.UserName, wp.UserName, path)).Output()
 	// Install wordpress with data provided by request
