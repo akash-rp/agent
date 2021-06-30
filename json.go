@@ -120,7 +120,8 @@ func addSiteToJSON(wp wpadd) error {
 		return echo.NewHTTPError(400, "JSON data error")
 	}
 
-	newSite := Site{Name: wp.AppName, SSL: 0, PrimaryDomain: Domain{Name: wp.Url, SSL: false}, Cache: "off", Redirect: false}
+	newSite := Site{Name: wp.AppName, SSL: 0, Cache: "off", Redirect: false}
+	newSite.PrimaryDomain = Domain{Name: wp.Url, SSL: false}
 	obj.Sites = append(obj.Sites, newSite)
 	back, _ := json.MarshalIndent(obj, "", "  ")
 	ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
