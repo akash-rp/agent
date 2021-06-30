@@ -43,7 +43,7 @@ frontend nonssl
     bind *:80`
 	for _, frontend := range obj.Sites {
 		conf = conf + fmt.Sprintf(`
-	acl host_%s hdr(host) -i %s`, frontend.Name, strings.Trim(fmt.Sprint(frontend.Domain), "[]"))
+	acl host_%s hdr(host) -i %s %s`, frontend.Name, frontend.PrimaryDomain, strings.Trim(fmt.Sprint(frontend.AliasDomain), "[]"))
 	}
 
 	if len(obj.Sites) == 0 {
@@ -120,7 +120,7 @@ func addSiteToJSON(wp wpadd) error {
 		return echo.NewHTTPError(400, "JSON data error")
 	}
 
-	newSite := Site{Name: wp.AppName, SSL: 0, Domain: []string{wp.Url}, Cache: "off", Redirect: false}
+	newSite := Site{Name: wp.AppName, SSL: 0, PrimaryDomain: wp.Url, Cache: "off", Redirect: false}
 	obj.Sites = append(obj.Sites, newSite)
 	back, _ := json.MarshalIndent(obj, "", "  ")
 	ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
@@ -176,11 +176,12 @@ type Default struct {
 }
 
 type Site struct {
-	Name     string   `json:"name"`
-	Domain   []string `json:"domain"`
-	SSL      int      `json:"ssl"`
-	Cache    string   `json:"cache"`
-	Redirect bool     `json:"redirect"`
+	Name          string   `json:"name"`
+	PrimaryDomain string   `json:"primaryDomain"`
+	AliasDomain   []string `json:"aliasDomain"`
+	SSL           int      `json:"ssl"`
+	Cache         string   `json:"cache"`
+	Redirect      bool     `json:"redirect"`
 }
 
 type Config struct {
