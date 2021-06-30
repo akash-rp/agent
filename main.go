@@ -239,7 +239,7 @@ func cert(c echo.Context) error {
 	c.Bind(&wp)
 	err := addCert(*wp)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "Cert error")
+		return echo.NewHTTPError(http.StatusBadRequest, err)
 	}
 	return c.String(http.StatusOK, "Success")
 }
