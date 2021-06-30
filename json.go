@@ -35,7 +35,7 @@ func configNuster() error {
 	if len(obj.Sites) == 0 {
 		conf = conf + `
 http-errors myerrors
-    errorfile 404 /usr/Hosting/errors/404.http`
+    errorfile 503 /usr/Hosting/errors/404.http`
 	}
 
 	conf = conf + `
