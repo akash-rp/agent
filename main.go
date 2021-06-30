@@ -25,6 +25,7 @@ func main() {
 	e.POST("/wp/add", wpAdd)
 	e.POST("/wp/delete", wpDelete)
 	e.GET("/hositng", hosting)
+	e.POST("/cert", cert)
 	e.Logger.Fatal(e.Start(":8081"))
 }
 
@@ -233,6 +234,16 @@ func hosting(c echo.Context) error {
 	return c.String(http.StatusOK, "Success")
 }
 
+func cert(c echo.Context) error {
+	wp := new(wpcert)
+	c.Bind(&wp)
+	err := addCert(*wp)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Cert error")
+	}
+	return c.String(http.StatusOK, "Success")
+}
+
 type systemstats struct {
 	Cores       string `json:"cores"`
 	Cpu         string `json:"cpu"`
@@ -262,4 +273,9 @@ type wpdelete struct {
 	UserName string `json:"userName"`
 	DbName   string `json:"dbName"`
 	DbUser   string `json:"DbUser"`
+}
+
+type wpcert struct {
+	AppName string `json:"appName"`
+	Url     string `json:""url`
 }
