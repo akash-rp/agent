@@ -42,6 +42,11 @@ http-errors myerrors
 	conf = conf + `
 frontend nonssl
     bind *:80`
+
+	if obj.SSL {
+		conf = conf + `
+	bind *:443 ssl crt /opt/Hosting/certs/`
+	}
 	for _, frontend := range obj.Sites {
 		conf = conf + fmt.Sprintf(`
 	acl host_%s hdr(host) -i %s`, frontend.Name, frontend.PrimaryDomain.Name)
@@ -182,10 +187,13 @@ func addCert(wp wpcert) error {
 				if err != nil {
 					return echo.NewHTTPError(404, "Error with cert config")
 				}
-				_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("certbot certonly --standalone -d %s", wp.Url)).Output()
+				_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("certbot certonly --standalone -d %s -m akashrp@outlook.com --agree-tos", wp.Url)).Output()
 				if err != nil {
 					return echo.NewHTTPError(404, "Error with cert config after dry run")
 				}
+				obj.SSL = true
+				exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /etc/letsencrypt/live/%s/fullchain.pem /etc/letsencrypt/live/%s/privkey.pem > /opt/Hosting/certs/%s.pem"))
+				configNuster()
 				exec.Command("/bin/bash", "-c", "service hosting start")
 				site.PrimaryDomain.SSL = true
 				back, err := json.MarshalIndent(obj, "", "  ")
@@ -229,6 +237,7 @@ type Config struct {
 	Global  Global  `json:"global"`
 	Default Default `json:"defaults"`
 	Sites   []Site  `json:"sites"`
+	SSL     bool    `json:"ssl"`
 }
 
 type Domain struct {

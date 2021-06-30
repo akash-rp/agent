@@ -10,5 +10,6 @@
       "server": 30
     }
   },
-  "sites": []
+  "sites": [],
+  "ssl": false
 }
