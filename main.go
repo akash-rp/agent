@@ -30,10 +30,10 @@ func main() {
 }
 
 func serverStats(c echo.Context) error {
-	totalmem, err := exec.Command("/bin/bash", "-c", "free -m | awk 'NR==2{printf $2}'").Output()
-	usedmem, err := exec.Command("/bin/bash", "-c", "free -m | awk 'NR==2{printf $3}'").Output()
-	cores, err := exec.Command("/bin/bash", "-c", "nproc").Output()
-	cpuname, err := exec.Command("/bin/bash", "-c", "lscpu | grep 'Model name' | cut -f 2 -d : | awk '{$1=$1}1'").Output()
+	totalmem, _ := exec.Command("/bin/bash", "-c", "free -m | awk 'NR==2{printf $2}'").Output()
+	usedmem, _ := exec.Command("/bin/bash", "-c", "free -m | awk 'NR==2{printf $3}'").Output()
+	cores, _ := exec.Command("/bin/bash", "-c", "nproc").Output()
+	cpuname, _ := exec.Command("/bin/bash", "-c", "lscpu | grep 'Model name' | cut -f 2 -d : | awk '{$1=$1}1'").Output()
 	os, err := exec.Command("/bin/bash", "-c", "hostnamectl | grep 'Operating System' | cut -f 2 -d : | awk '{$1=$1}1'").Output()
 	if err != nil {
 		log.Fatal(err)
@@ -83,7 +83,7 @@ func wpAdd(c echo.Context) error {
 	}
 
 	// Check for appName if already exists or not. If exists send error message
-	lsByte, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("ls %s", path)).Output()
+	lsByte, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("ls %s", path)).Output()
 	lsStirng := string(lsByte)
 	lsSlice := strings.Split(lsStirng, "\n")
 

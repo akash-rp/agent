@@ -168,7 +168,7 @@ func deleteSiteFromJSON(wp wpdelete) error {
 		obj.SSL = false
 	}
 
-	back, err := json.MarshalIndent(obj, "", "  ")
+	back, _ := json.MarshalIndent(obj, "", "  ")
 	err = ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
 	if err != nil {
 		return echo.NewHTTPError(400, "Cannot write to config file")
@@ -182,13 +182,13 @@ func RemoveIndex(s []Site, index int) []Site {
 
 func addCert(wp wpcert) error {
 
-	data, err := ioutil.ReadFile("/usr/Hosting/config.json")
+	data, _ := ioutil.ReadFile("/usr/Hosting/config.json")
 
 	// json data
 	var obj Config
 
 	// unmarshall it
-	err = json.Unmarshal(data, &obj)
+	err := json.Unmarshal(data, &obj)
 	if err != nil {
 		return echo.NewHTTPError(400, "JSON data error")
 	}
@@ -205,9 +205,9 @@ func addCert(wp wpcert) error {
 					return echo.NewHTTPError(404, "Error with cert config after dry run")
 				}
 				obj.SSL = true
-				exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /etc/letsencrypt/live/%s/fullchain.pem /etc/letsencrypt/live/%s/privkey.pem > /opt/Hosting/certs/%s.pem"))
+				exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /etc/letsencrypt/live/%s/fullchain.pem /etc/letsencrypt/live/%s/privkey.pem > /opt/Hosting/certs/%s.pem", wp.Url, wp.Url, wp.Url))
 				obj.Sites[i].PrimaryDomain.SSL = true
-				back, err := json.MarshalIndent(obj, "", "  ")
+				back, _ := json.MarshalIndent(obj, "", "  ")
 				err = ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
 				if err != nil {
 					return echo.NewHTTPError(400, "Cannot write to config file")
