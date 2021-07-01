@@ -99,6 +99,7 @@ backend nocache
 backend static
     http-response set-header x-type STATIC
     server s2 0.0.0.0:8088
+	
 	`
 	// the WriteFile method returns an error if unsuccessful
 	err = ioutil.WriteFile("/opt/Hosting/hosting.cfg", []byte(conf), 0777)
