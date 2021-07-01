@@ -126,7 +126,7 @@ func addSiteToJSON(wp wpadd) error {
 		return echo.NewHTTPError(400, "JSON data error")
 	}
 
-	newSite := Site{Name: wp.AppName, SSL: 0, Cache: "off", Redirect: false}
+	newSite := Site{Name: wp.AppName, Cache: "off", Redirect: false}
 	newSite.PrimaryDomain = Domain{Name: wp.Url, SSL: false}
 	obj.Sites = append(obj.Sites, newSite)
 	back, _ := json.MarshalIndent(obj, "", "  ")
@@ -228,7 +228,6 @@ type Site struct {
 	Name          string   `json:"name"`
 	PrimaryDomain Domain   `json:"primaryDomain"`
 	AliasDomain   []Domain `json:"aliasDomain"`
-	SSL           int      `json:"ssl"`
 	Cache         string   `json:"cache"`
 	Redirect      bool     `json:"redirect"`
 }
