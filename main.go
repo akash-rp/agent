@@ -247,6 +247,8 @@ func hosting(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+	exec.Command("/bin/bash", "-c", "service hosting stop").Output()
+	exec.Command("/bin/bash", "-c", "service hosting start").Output()
 	return c.String(http.StatusOK, "Success")
 }
 
