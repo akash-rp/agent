@@ -158,6 +158,7 @@ func deleteSiteFromJSON(wp wpdelete) error {
 	if len(obj.Sites) == 0 {
 		obj.SSL = false
 	}
+
 	for _, site := range obj.Sites {
 		if site.PrimaryDomain.SSL {
 			obj.SSL = true
@@ -165,7 +166,7 @@ func deleteSiteFromJSON(wp wpdelete) error {
 		}
 		obj.SSL = false
 	}
-	obj.SSL = false
+
 	back, err := json.MarshalIndent(obj, "", "  ")
 	err = ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
 	if err != nil {
