@@ -130,13 +130,13 @@ func wpAdd(c echo.Context) error {
 	}
 
 	f.WriteString(`
+	/*######################################################################
 	######################################################################
-	######################################################################
-	###        DO NOT REMOVE THIS BLOCK. ADDED BY HOSTING            #####
+	###        DO NOT REMOVE THIS BLOCK. ADDED BY HOSTING            #####*/
 	if ($_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
 	$_SERVER['HTTPS'] = 'on';
     }
-    ######################################################################`)
+    /*######################################################################*/`)
 
 	f.Close()
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("touch %s/.htaccess", path)).Output()
