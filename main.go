@@ -125,6 +125,9 @@ func wpAdd(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, string(out))
 	}
 	f, err := os.OpenFile(fmt.Sprintf("%s/wp-config.php", path), os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "cannot add http block to wpconfig file")
+	}
 
 	f.WriteString(`
 	######################################################################
