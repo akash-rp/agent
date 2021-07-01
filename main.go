@@ -115,21 +115,21 @@ func wpAdd(c echo.Context) error {
 		ioutil.WriteFile("/usr/Hosting/error.log", write, 0777)
 		return echo.NewHTTPError(http.StatusBadRequest, string(out))
 	}
-	f, err := os.OpenFile(fmt.Sprintf("%s/wp-config.php", path), os.O_APPEND|os.O_WRONLY, 0644)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "cannot add http block to wpconfig file")
-	}
+	// 	f, err := os.OpenFile(fmt.Sprintf("%s/wp-config.php", path), os.O_APPEND|os.O_WRONLY, 0644)
+	// 	if err != nil {
+	// 		return echo.NewHTTPError(http.StatusBadRequest, "cannot add http block to wpconfig file")
+	// 	}
 
-	f.WriteString(`
-/*######################################################################
-######################################################################
-###        DO NOT REMOVE THIS BLOCK. ADDED BY HOSTING            #####*/
-if ($_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
-	$_SERVER['HTTPS'] = 'on';
-}
-/*######################################################################*/`)
+	// 	f.WriteString(`
+	// /*######################################################################
+	// ######################################################################
+	// ###        DO NOT REMOVE THIS BLOCK. ADDED BY HOSTING            #####*/
+	// if ($_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+	// 	$_SERVER['HTTPS'] = 'on';
+	// }
+	// /*######################################################################*/`)
 
-	f.Close()
+	// 	f.Close()
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("touch %s/.htaccess", path)).Output()
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("echo \" %s/.htaccess IN_MODIFY /usr/sbin/service lsws restart\" >> /etc/incron.d/sites.txt", path)).Output()
 	exec.Command("/bin/bash", "-c", "incrontab /etc/incron.d/sites.txt").Output()
