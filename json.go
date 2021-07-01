@@ -165,7 +165,7 @@ func deleteSiteFromJSON(wp wpdelete) error {
 		}
 		obj.SSL = false
 	}
-
+	obj.SSL = false
 	back, err := json.MarshalIndent(obj, "", "  ")
 	err = ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
 	if err != nil {
