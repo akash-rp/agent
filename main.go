@@ -124,7 +124,7 @@ func wpAdd(c echo.Context) error {
 		ioutil.WriteFile("/usr/Hosting/error.log", write, 0777)
 		return echo.NewHTTPError(http.StatusBadRequest, string(out))
 	}
-	f, err := os.OpenFile(path+"wp-config.php", os.O_APPEND|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(fmt.Sprintf("%s/wp-config.php", path), os.O_APPEND|os.O_WRONLY, 0644)
 
 	f.WriteString(`
 	######################################################################
