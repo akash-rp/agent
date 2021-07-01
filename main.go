@@ -277,5 +277,6 @@ type wpdelete struct {
 
 type wpcert struct {
 	AppName string `json:"appName"`
-	Url     string `json:""url`
+	Url     string `json:"url"`
+	Email   string `json:"email"`
 }

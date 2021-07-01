@@ -180,27 +180,27 @@ func addCert(wp wpcert) error {
 		return echo.NewHTTPError(400, "JSON data error")
 	}
 
-	for _, site := range obj.Sites {
+	for i, site := range obj.Sites {
 		if wp.AppName == site.Name {
 			if wp.Url == site.PrimaryDomain.Name {
 				_, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("service hosting stop; certbot certonly --standalone --dry-run -d %s", wp.Url)).Output()
 				if err != nil {
 					return echo.NewHTTPError(404, "Error with cert config")
 				}
-				_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("certbot certonly --standalone -d %s -m akashrp@outlook.com --agree-tos", wp.Url)).Output()
+				_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("certbot certonly --standalone -d %s -m %s --agree-tos --cert-name %s", wp.Url, wp.Email, wp.Url)).Output()
 				if err != nil {
 					return echo.NewHTTPError(404, "Error with cert config after dry run")
 				}
 				obj.SSL = true
 				exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /etc/letsencrypt/live/%s/fullchain.pem /etc/letsencrypt/live/%s/privkey.pem > /opt/Hosting/certs/%s.pem"))
-				configNuster()
-				exec.Command("/bin/bash", "-c", "service hosting start")
-				site.PrimaryDomain.SSL = true
+				obj.Sites[i].PrimaryDomain.SSL = true
 				back, err := json.MarshalIndent(obj, "", "  ")
 				err = ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
 				if err != nil {
 					return echo.NewHTTPError(400, "Cannot write to config file")
 				}
+				configNuster()
+				exec.Command("/bin/bash", "-c", "service hosting start")
 				return nil
 			}
 		}
