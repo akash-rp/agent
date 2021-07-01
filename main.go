@@ -49,15 +49,6 @@ func serverStats(c echo.Context) error {
 	return c.JSON(http.StatusOK, m)
 }
 
-// func wpcli(c echo.Context) error {
-// 	wpdata := new(wp)
-// 	err := c.Bind(&wpdata)
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-// 	return c.JSON(http.StatusOK, wpdata)
-// }
-
 func wpAdd(c echo.Context) error {
 	// Bind received post request body to a struct
 	wp := new(wpadd)
