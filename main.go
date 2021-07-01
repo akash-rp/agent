@@ -124,6 +124,18 @@ func wpAdd(c echo.Context) error {
 		ioutil.WriteFile("/usr/Hosting/error.log", write, 0777)
 		return echo.NewHTTPError(http.StatusBadRequest, string(out))
 	}
+	f, err := os.OpenFile(path+"wp-config.php", os.O_APPEND|os.O_WRONLY, 0644)
+
+	f.WriteString(`
+	######################################################################
+	######################################################################
+	###        DO NOT REMOVE THIS BLOCK. ADDED BY HOSTING            #####
+	if ($_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+	$_SERVER['HTTPS'] = 'on';
+    }
+    ######################################################################`)
+
+	f.Close()
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("touch %s/.htaccess", path)).Output()
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("echo \" %s/.htaccess IN_MODIFY /usr/sbin/service lsws restart\" >> /etc/incron.d/sites.txt", path)).Output()
 	exec.Command("/bin/bash", "-c", "incrontab /etc/incron.d/sites.txt").Output()
@@ -192,6 +204,7 @@ func wpDelete(c echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Cannot config nuster file")
 	}
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i '/%s\\/%s/d' /etc/incron.d/sites.txt", wp.UserName, wp.AppName)).Output()
 	exec.Command("/bin/bash", "-c", "service hosting stop").Output()
 	exec.Command("/bin/bash", "-c", "service hosting start").Output()
 
