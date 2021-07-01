@@ -45,7 +45,8 @@ frontend nonssl
 
 	if obj.SSL {
 		conf = conf + `
-	bind *:443 ssl crt /opt/Hosting/certs/`
+	bind *:443 ssl crt /opt/Hosting/certs/
+	http-request set-header X-Forwarded-Proto https if {ssl_fc}`
 	}
 	for _, frontend := range obj.Sites {
 		conf = conf + fmt.Sprintf(`
