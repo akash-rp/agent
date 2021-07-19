@@ -256,8 +256,8 @@ func cert(c echo.Context) error {
 type systemstats struct {
 	Cores       string `json:"cores"`
 	Cpu         string `json:"cpu"`
-	TotalMemory string `json:"totalMemeory"`
-	UsedMemory  string `json:"usedMemeory"`
+	TotalMemory string `json:"totalMemory"`
+	UsedMemory  string `json:"usedMemory"`
 	Os          string `json:"os"`
 }
 
