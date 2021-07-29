@@ -27,6 +27,7 @@ func main() {
 	e.GET("/hositng", hosting)
 	e.POST("/cert", cert)
 	e.Logger.Fatal(e.Start(":8081"))
+	e.GET("/sites", getSites)
 }
 
 func serverStats(c echo.Context) error {
@@ -34,6 +35,8 @@ func serverStats(c echo.Context) error {
 	usedmem, _ := exec.Command("/bin/bash", "-c", "free -m | awk 'NR==2{printf $3}'").Output()
 	cores, _ := exec.Command("/bin/bash", "-c", "nproc").Output()
 	cpuname, _ := exec.Command("/bin/bash", "-c", "lscpu | grep 'Model name' | cut -f 2 -d : | awk '{$1=$1}1'").Output()
+	totaldisk, _ := exec.Command("/bin/bash", "-c", " df --total | awk '/total/{printf $2}'").Output()
+	useddisk, _ := exec.Command("/bin/bash", "-c", " df --total | awk '/total/{printf $3}'").Output()
 	os, err := exec.Command("/bin/bash", "-c", "hostnamectl | grep 'Operating System' | cut -f 2 -d : | awk '{$1=$1}1'").Output()
 	if err != nil {
 		log.Fatal(err)
@@ -42,6 +45,8 @@ func serverStats(c echo.Context) error {
 	m := &systemstats{
 		TotalMemory: string(totalmem),
 		UsedMemory:  string(usedmem),
+		TotalDisk:   string(totaldisk),
+		UsedDisk:    string(useddisk),
 		Cores:       strings.TrimSuffix(string(cores), "\n"),
 		Cpu:         strings.TrimSuffix(string(cpuname), "\n"),
 		Os:          strings.TrimSuffix(string(os), "\n"),
@@ -258,6 +263,8 @@ type systemstats struct {
 	Cpu         string `json:"cpu"`
 	TotalMemory string `json:"totalMemory"`
 	UsedMemory  string `json:"usedMemory"`
+	TotalDisk   string `json:"totalDisk`
+	UsedDisk    string `json:"usedDisk"`
 	Os          string `json:"os"`
 }
 

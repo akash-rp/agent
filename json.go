@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os/exec"
 	"strings"
 
@@ -176,6 +177,23 @@ func deleteSiteFromJSON(wp wpdelete) error {
 		return echo.NewHTTPError(400, "Cannot write to config file")
 	}
 	return nil
+}
+
+func getSites(c echo.Context) error {
+	data, err := ioutil.ReadFile("/usr/Hosting/config.json")
+	if err != nil {
+		return echo.NewHTTPError(404, "Config file not found")
+	}
+
+	// json data
+	var obj Config
+
+	// unmarshall it
+	err = json.Unmarshal(data, &obj)
+	if err != nil {
+		return echo.NewHTTPError(400, "JSON data error")
+	}
+	return c.JSON(http.StatusOK, obj)
 }
 
 func RemoveIndex(s []Site, index int) []Site {
