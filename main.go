@@ -263,7 +263,7 @@ type systemstats struct {
 	Cpu         string `json:"cpu"`
 	TotalMemory string `json:"totalMemory"`
 	UsedMemory  string `json:"usedMemory"`
-	TotalDisk   string `json:"totalDisk`
+	TotalDisk   string `json:"totalDisk"`
 	UsedDisk    string `json:"usedDisk"`
 	Os          string `json:"os"`
 }
