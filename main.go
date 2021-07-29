@@ -35,8 +35,8 @@ func serverStats(c echo.Context) error {
 	usedmem, _ := exec.Command("/bin/bash", "-c", "free -m | awk 'NR==2{printf $3}'").Output()
 	cores, _ := exec.Command("/bin/bash", "-c", "nproc").Output()
 	cpuname, _ := exec.Command("/bin/bash", "-c", "lscpu | grep 'Model name' | cut -f 2 -d : | awk '{$1=$1}1'").Output()
-	totaldisk, _ := exec.Command("/bin/bash", "-c", " df -h --total | awk '/total/{printf $2}'").Output()
-	useddisk, _ := exec.Command("/bin/bash", "-c", " df -h --total | awk '/total/{printf $3}'").Output()
+	totaldisk, _ := exec.Command("/bin/bash", "-c", " df -h --total -x tmpfs | awk '/total/{printf $2}'").Output()
+	useddisk, _ := exec.Command("/bin/bash", "-c", " df -h --total -x tmpfs| awk '/total/{printf $3}'").Output()
 	os, err := exec.Command("/bin/bash", "-c", "hostnamectl | grep 'Operating System' | cut -f 2 -d : | awk '{$1=$1}1'").Output()
 	if err != nil {
 		log.Fatal(err)
