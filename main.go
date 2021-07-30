@@ -37,6 +37,7 @@ func serverStats(c echo.Context) error {
 	cpuname, _ := exec.Command("/bin/bash", "-c", "lscpu | grep 'Model name' | cut -f 2 -d : | awk '{$1=$1}1'").Output()
 	totaldisk, _ := exec.Command("/bin/bash", "-c", " df -h --total -x tmpfs | awk '/total/{printf $2}'").Output()
 	useddisk, _ := exec.Command("/bin/bash", "-c", " df -h --total -x tmpfs| awk '/total/{printf $3}'").Output()
+	bandwidth, _ := exec.Command("/bin/bash", "-c", "vnstat | awk 'NR==4{print $5$6}'").Output()
 	os, err := exec.Command("/bin/bash", "-c", "hostnamectl | grep 'Operating System' | cut -f 2 -d : | awk '{$1=$1}1'").Output()
 	if err != nil {
 		log.Fatal(err)
@@ -47,6 +48,7 @@ func serverStats(c echo.Context) error {
 		UsedMemory:  string(usedmem),
 		TotalDisk:   string(totaldisk),
 		UsedDisk:    string(useddisk),
+		Bandwidth:   string(bandwidth),
 		Cores:       strings.TrimSuffix(string(cores), "\n"),
 		Cpu:         strings.TrimSuffix(string(cpuname), "\n"),
 		Os:          strings.TrimSuffix(string(os), "\n"),
@@ -265,6 +267,7 @@ type systemstats struct {
 	UsedMemory  string `json:"usedMemory"`
 	TotalDisk   string `json:"totalDisk"`
 	UsedDisk    string `json:"usedDisk"`
+	Bandwidth   string `json:"bandwidth"`
 	Os          string `json:"os"`
 }
 
