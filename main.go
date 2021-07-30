@@ -42,13 +42,14 @@ func serverStats(c echo.Context) error {
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	stringBandwith := string(bandwidth)
+	stringBandwith = strings.ReplaceAll(stringBandwith, "i", "")
 	m := &systemstats{
 		TotalMemory: string(totalmem),
 		UsedMemory:  string(usedmem),
 		TotalDisk:   string(totaldisk),
 		UsedDisk:    string(useddisk),
-		Bandwidth:   string(bandwidth),
+		Bandwidth:   strings.TrimSuffix(stringBandwith, "\n"),
 		Cores:       strings.TrimSuffix(string(cores), "\n"),
 		Cpu:         strings.TrimSuffix(string(cpuname), "\n"),
 		Os:          strings.TrimSuffix(string(os), "\n"),
