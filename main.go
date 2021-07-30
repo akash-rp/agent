@@ -26,8 +26,8 @@ func main() {
 	e.POST("/wp/delete", wpDelete)
 	e.GET("/hositng", hosting)
 	e.POST("/cert", cert)
-	e.Logger.Fatal(e.Start(":8081"))
 	e.GET("/sites", getSites)
+	e.Logger.Fatal(e.Start(":8081"))
 }
 
 func serverStats(c echo.Context) error {
