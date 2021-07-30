@@ -193,7 +193,7 @@ func getSites(c echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(400, "JSON data error")
 	}
-	return c.JSON(http.StatusOK, obj)
+	return c.JSON(http.StatusOK, &obj)
 }
 
 func RemoveIndex(s []Site, index int) []Site {
