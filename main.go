@@ -65,7 +65,7 @@ func wpAdd(c echo.Context) error {
 	// Check if all fields are defind
 	if wp.AppName == "" || wp.Url == "" || wp.UserName == "" || wp.Title == "" || wp.AdminEmail == "" || wp.AdminPassword == "" || wp.AdminUser == "" {
 		result := &errcode{
-			Code:    "101",
+			Code:    101,
 			Message: "Required fields are not defined",
 		}
 		return c.JSON(http.StatusBadRequest, result)
@@ -92,7 +92,11 @@ func wpAdd(c echo.Context) error {
 
 	for _, ls := range lsSlice {
 		if ls == wp.AppName {
-			return echo.NewHTTPError(http.StatusBadRequest, "App Name exists")
+			result := &errcode{
+				Code:    102,
+				Message: "App Name exists",
+			}
+			return c.JSON(http.StatusBadRequest, result)
 		}
 	}
 
@@ -103,7 +107,11 @@ func wpAdd(c echo.Context) error {
 
 	err = createDatabase(dbCred)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "Cannot create database")
+		result := &errcode{
+			Code:    103,
+			Message: "Cannot create database",
+		}
+		return c.JSON(http.StatusBadRequest, result)
 	}
 
 	//Create folder in user home directory for wordpress
@@ -111,7 +119,11 @@ func wpAdd(c echo.Context) error {
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("mkdir %s", path)).Output()
 	_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("chown %s:%s %s", wp.UserName, wp.UserName, path)).Output()
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+		result := &errcode{
+			Code:    104,
+			Message: "cannot create folder for wordpress",
+		}
+		return c.JSON(http.StatusBadRequest, result)
 	}
 
 	// Download wordpress
@@ -119,15 +131,23 @@ func wpAdd(c echo.Context) error {
 	if err != nil {
 		write, _ := json.MarshalIndent(dbCred, "", "  ")
 		ioutil.WriteFile("/usr/Hosting/error.log", write, 0777)
-		return echo.NewHTTPError(http.StatusBadRequest, "Wordpress Download Error")
+		result := &errcode{
+			Code:    105,
+			Message: "Cannot download wordpress",
+		}
+		return c.JSON(http.StatusBadRequest, result)
 	}
 
 	// Create config file with database crediantls for DB struct
-	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %s -i -- /usr/Hosting/wp-cli config create --path=%s --dbname=%s --dbuser=%s --dbpass=%s", wp.UserName, path, dbCred.Name, dbCred.User, dbCred.Password)).CombinedOutput()
+	_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %s -i -- /usr/Hosting/wp-cli config create --path=%s --dbname=%s --dbuser=%s --dbpass=%s", wp.UserName, path, dbCred.Name, dbCred.User, dbCred.Password)).CombinedOutput()
 	if err != nil {
 		write, _ := json.MarshalIndent(dbCred, "", "  ")
 		ioutil.WriteFile("/usr/Hosting/error.log", write, 0777)
-		return echo.NewHTTPError(http.StatusBadRequest, string(out))
+		result := &errcode{
+			Code:    106,
+			Message: "Connot configure wp-config file",
+		}
+		return c.JSON(http.StatusBadRequest, result)
 	}
 	// 	f, err := os.OpenFile(fmt.Sprintf("%s/wp-config.php", path), os.O_APPEND|os.O_WRONLY, 0644)
 	// 	if err != nil {
@@ -149,26 +169,42 @@ func wpAdd(c echo.Context) error {
 	exec.Command("/bin/bash", "-c", "incrontab /etc/incron.d/sites.txt").Output()
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("chown %s:%s %s/.htaccess", wp.UserName, wp.UserName, path)).Output()
 	// Install wordpress with data provided by request
-	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %s -i -- /usr/Hosting/wp-cli core install --path=%s --url=%s --title=%s --admin_user=%s --admin_password=%s --admin_email=%s", wp.UserName, path, wp.Url, wp.Title, wp.AdminUser, wp.AdminPassword, wp.AdminEmail)).CombinedOutput()
+	_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %s -i -- /usr/Hosting/wp-cli core install --path=%s --url=%s --title=%s --admin_user=%s --admin_password=%s --admin_email=%s", wp.UserName, path, wp.Url, wp.Title, wp.AdminUser, wp.AdminPassword, wp.AdminEmail)).CombinedOutput()
 
 	if err != nil {
 		write, _ := json.MarshalIndent(dbCred, "", "  ")
 		ioutil.WriteFile("/usr/Hosting/error.log", write, 0777)
-		return echo.NewHTTPError(http.StatusBadRequest, string(out))
+		result := &errcode{
+			Code:    107,
+			Message: "Cannot install wordpress",
+		}
+		return c.JSON(http.StatusBadRequest, result)
 	}
 	err = editLsws(*wp)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "Cannot create lsws config file")
+		result := &errcode{
+			Code:    108,
+			Message: "Edit lsws error",
+		}
+		return c.JSON(http.StatusBadRequest, result)
 	}
 
 	err = addSiteToJSON(*wp)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "Cannot add site to config file")
+		result := &errcode{
+			Code:    109,
+			Message: "Error occured while adding site to json",
+		}
+		return c.JSON(http.StatusBadRequest, result)
 	}
 
 	err = configNuster()
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "Cannot add site to hosting.cfg file")
+		result := &errcode{
+			Code:    110,
+			Message: "Error occured while configuring nuster",
+		}
+		return c.JSON(http.StatusBadRequest, result)
 	}
 	exec.Command("/bin/bash", "-c", "service hosting stop").Output()
 	exec.Command("/bin/bash", "-c", "service hosting start").Output()
@@ -192,17 +228,6 @@ func wpDelete(c echo.Context) error {
 	lsStirng := string(lsByte)
 	lsSlice := strings.Split(lsStirng, "\n")
 	lsSlice = lsSlice[:len(lsSlice)-1]
-	shouldDelete := true
-	for _, ls := range lsSlice {
-		if ls != "logs" {
-			shouldDelete = false
-			continue
-		}
-	}
-	if shouldDelete {
-		exec.Command("/bin/bash", "-c", fmt.Sprintf("userdel -f -r %s", wp.UserName)).Output()
-
-	}
 	err := deleteSiteFromJSON(*wp)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Cannot delete from Json file")
@@ -308,6 +333,6 @@ type wpcert struct {
 }
 
 type errcode struct {
-	Code    string `json:"code"`
+	Code    int    `json:"code"`
 	Message string `json:message`
 }
