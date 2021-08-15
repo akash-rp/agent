@@ -66,11 +66,11 @@ frontend nonssl
 			}
 			if frontend.PrimaryDomain.Routing == "www" {
 				conf = conf + fmt.Sprintf(`
-	redirect prefix %s code 301 if { hdr(host) -i www.%s }`, frontend.PrimaryDomain.Name, frontend.PrimaryDomain.Name)
+	redirect prefix www.%s code 301 if { hdr(host) -i %s }`, frontend.PrimaryDomain.Name, frontend.PrimaryDomain.Name)
 			}
 			if frontend.PrimaryDomain.Routing == "root" {
 				conf = conf + fmt.Sprintf(`
-	redirect prefix %s code 301 if { hdr(host) -i %s }`, frontend.PrimaryDomain.Name, frontend.PrimaryDomain.Name)
+	redirect prefix %s code 301 if { hdr(host) -i www.%s }`, frontend.PrimaryDomain.Name, frontend.PrimaryDomain.Name)
 			}
 		}
 	}
