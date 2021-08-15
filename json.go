@@ -50,8 +50,29 @@ frontend nonssl
 	http-request set-header X-Forwarded-Proto https if { ssl_fc }`
 	}
 	for _, frontend := range obj.Sites {
-		conf = conf + fmt.Sprintf(`
+		if frontend.PrimaryDomain.SubDomain == true {
+			conf = conf + fmt.Sprintf(`
 	acl host_%s hdr(host) -i %s`, frontend.Name, frontend.PrimaryDomain.Name)
+			if frontend.PrimaryDomain.WildCard == true {
+				conf = conf + fmt.Sprintf(`
+	acl host_%s hdr_dom(host) -i %s`, frontend.Name, frontend.PrimaryDomain.Name)
+			}
+		} else {
+			conf = conf + fmt.Sprintf(`
+	acl host_%s hdr(host) -i %s`, frontend.Name, frontend.PrimaryDomain.Name)
+			if frontend.PrimaryDomain.WildCard == true {
+				conf = conf + fmt.Sprintf(`
+	acl host_%s hdr_dom(host) -i %s`, frontend.Name, frontend.PrimaryDomain.Name)
+			}
+			if frontend.PrimaryDomain.Routing == "www" {
+				conf = conf + fmt.Sprintf(`
+	redirect prefix %s code 301 if { hdr(host) -i www.%s }`, frontend.PrimaryDomain.Name, frontend.PrimaryDomain.Name)
+			}
+			if frontend.PrimaryDomain.Routing == "root" {
+				conf = conf + fmt.Sprintf(`
+	redirect prefix %s code 301 if { hdr(host) -i %s }`, frontend.PrimaryDomain.Name, frontend.PrimaryDomain.Name)
+			}
+		}
 	}
 
 	if len(obj.Sites) == 0 {
@@ -79,6 +100,7 @@ frontend nonssl
     use_backend static if static_file`
 
 	for _, frontend := range obj.Sites {
+
 		conf = conf + fmt.Sprintf(`
 	use_backend %s if host_%s`, frontend.Name, frontend.Name)
 	}
@@ -130,8 +152,8 @@ func addSiteToJSON(wp wpadd) error {
 		return echo.NewHTTPError(400, "JSON data error")
 	}
 
-	newSite := Site{Name: wp.AppName, Cache: "off", Redirect: false}
-	newSite.PrimaryDomain = Domain{Name: wp.Url, SSL: false}
+	newSite := Site{Name: wp.AppName, Cache: "off"}
+	newSite.PrimaryDomain = Domain{Name: wp.Url, SSL: false, SubDomain: false, Routing: "none", WildCard: false}
 	obj.Sites = append(obj.Sites, newSite)
 	back, _ := json.MarshalIndent(obj, "", "  ")
 	ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
@@ -262,7 +284,6 @@ type Site struct {
 	PrimaryDomain Domain   `json:"primaryDomain"`
 	AliasDomain   []Domain `json:"aliasDomain"`
 	Cache         string   `json:"cache"`
-	Redirect      bool     `json:"redirect"`
 }
 
 type Config struct {
@@ -273,6 +294,9 @@ type Config struct {
 }
 
 type Domain struct {
-	Name string `json:"name"`
-	SSL  bool   `json:"ssl"`
+	Name      string `json:"name"`
+	SubDomain bool   `json:"subDomain"`
+	SSL       bool   `json:"ssl"`
+	WildCard  bool   `json:"wildcard"`
+	Routing   string `json:"routing"`
 }
