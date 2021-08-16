@@ -313,6 +313,7 @@ type wpadd struct {
 	AdminEmail    string `json:"adminEmail"`
 	SubDomain     bool   `json:"subdomain"`
 	Routing       string `json:"routing"`
+	Sites         []Site `json:"sites"`
 }
 
 type db struct {

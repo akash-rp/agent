@@ -87,10 +87,11 @@ frontend nonssl
 		conf = conf + fmt.Sprintf("\nuse_backend %s if ", frontend.Name)
 		conf = conf + fmt.Sprintf("{ hdr(host) -i %s }", frontend.PrimaryDomain.Url)
 		for _, frontendurls := range frontend.AliasDomain {
+			conf = conf + fmt.Sprintf(" || ")
 			conf = conf + fmt.Sprintf("{ hdr(host) -i %s }", frontendurls.Url)
 		}
 		for _, exclude := range frontend.Exclude {
-			conf = conf + fmt.Sprintf("!{ hdr(host) -i %s }", exclude)
+			conf = conf + fmt.Sprintf(" !{ hdr(host) -i %s }", exclude)
 		}
 		conf = conf + fmt.Sprintf("\n")
 	}
@@ -141,8 +142,10 @@ func addSiteToJSON(wp wpadd) error {
 	if err != nil {
 		return echo.NewHTTPError(400, "JSON data error")
 	}
-
+	obj.Sites = wp.Sites
 	newSite := Site{Name: wp.AppName, Cache: "off"}
+	newSite.AliasDomain = []Domain{}
+	newSite.Exclude = []string{}
 	newSite.PrimaryDomain = Domain{Url: wp.Url, SSL: false, SubDomain: wp.SubDomain, Routing: wp.Routing, WildCard: false}
 	obj.Sites = append(obj.Sites, newSite)
 	back, _ := json.MarshalIndent(obj, "", "  ")
