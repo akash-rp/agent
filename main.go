@@ -311,6 +311,8 @@ type wpadd struct {
 	AdminUser     string `json:"adminUser"`
 	AdminPassword string `json:"adminPassword"`
 	AdminEmail    string `json:"adminEmail"`
+	SubDomain     bool   `json:"subdomain"`
+	Routing       string `json:"routing"`
 }
 
 type db struct {

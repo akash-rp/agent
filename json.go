@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os/exec"
-	"strings"
 
 	"github.com/labstack/echo/v4"
 )
@@ -51,26 +50,20 @@ frontend nonssl
 	}
 	for _, frontend := range obj.Sites {
 		if frontend.PrimaryDomain.SubDomain == true {
-			conf = conf + fmt.Sprintf(`
-	acl host_%s hdr(host) -i %s`, frontend.Name, frontend.PrimaryDomain.Name)
+			conf = conf + fmt.Sprintf(`acl host_%s hdr(host) -i %s`, frontend.Name, frontend.PrimaryDomain.Url)
 			if frontend.PrimaryDomain.WildCard == true {
-				conf = conf + fmt.Sprintf(`
-	acl host_%s hdr_dom(host) -i %s`, frontend.Name, frontend.PrimaryDomain.Name)
+				conf = conf + fmt.Sprintf(`acl host_%s hdr_dom(host) -i %s`, frontend.Name, frontend.PrimaryDomain.Url)
 			}
 		} else {
-			conf = conf + fmt.Sprintf(`
-	acl host_%s hdr(host) -i %s`, frontend.Name, frontend.PrimaryDomain.Name)
+			conf = conf + fmt.Sprintf(`acl host_%s hdr(host) -i %s`, frontend.Name, frontend.PrimaryDomain.Url)
 			if frontend.PrimaryDomain.WildCard == true {
-				conf = conf + fmt.Sprintf(`
-	acl host_%s hdr_dom(host) -i %s`, frontend.Name, frontend.PrimaryDomain.Name)
+				conf = conf + fmt.Sprintf(`	acl host_%s hdr_dom(host) -i %s`, frontend.Name, frontend.PrimaryDomain.Url)
 			}
 			if frontend.PrimaryDomain.Routing == "www" {
-				conf = conf + fmt.Sprintf(`
-	redirect prefix www.%s code 301 if { hdr(host) -i %s }`, frontend.PrimaryDomain.Name, frontend.PrimaryDomain.Name)
+				conf = conf + fmt.Sprintf(`	redirect prefix http://www.%s code 301 if { hdr(host) -i %s }`, frontend.PrimaryDomain.Url, frontend.PrimaryDomain.Url)
 			}
 			if frontend.PrimaryDomain.Routing == "root" {
-				conf = conf + fmt.Sprintf(`
-	redirect prefix %s code 301 if { hdr(host) -i www.%s }`, frontend.PrimaryDomain.Name, frontend.PrimaryDomain.Name)
+				conf = conf + fmt.Sprintf(`	redirect prefix http://%s code 301 if { hdr(host) -i www.%s }`, frontend.PrimaryDomain.Url, frontend.PrimaryDomain.Url)
 			}
 		}
 	}
@@ -86,23 +79,20 @@ frontend nonssl
     acl has_path path_sub wp-admin || wp-login
     acl static_file path_end .js || .css || .png || .jpg || .jpeg || .gif || .ico`
 
-	if len(obj.Sites) > 0 {
-		hosts := []string{}
-		for _, host := range obj.Sites {
-			hosts = append(hosts, fmt.Sprintf("!host_%s", host.Name))
-		}
-		conf = conf + fmt.Sprintf(`
-	http-request reject if %s`, strings.Join(hosts, " "))
-	}
-
 	conf = conf + `
     use_backend nocache if has_path || has_cookie
     use_backend static if static_file`
 
 	for _, frontend := range obj.Sites {
-
-		conf = conf + fmt.Sprintf(`
-	use_backend %s if host_%s`, frontend.Name, frontend.Name)
+		conf = conf + fmt.Sprintf("\nuse_backend %s if", frontend.Name)
+		conf = conf + fmt.Sprintf("{ hdr(host) -i %s }", frontend.PrimaryDomain.Url)
+		for _, frontendurls := range frontend.AliasDomain {
+			conf = conf + fmt.Sprintf("{ hdr(host) -i %s }", frontendurls.Url)
+		}
+		for _, exclude := range frontend.Exclude {
+			conf = conf + fmt.Sprintf("!{ hdr(host) -i %s }", exclude)
+		}
+		conf = conf + fmt.Sprintf("\n")
 	}
 
 	for i, backend := range obj.Sites {
@@ -153,7 +143,7 @@ func addSiteToJSON(wp wpadd) error {
 	}
 
 	newSite := Site{Name: wp.AppName, Cache: "off"}
-	newSite.PrimaryDomain = Domain{Name: wp.Url, SSL: false, SubDomain: false, Routing: "none", WildCard: false}
+	newSite.PrimaryDomain = Domain{Url: wp.Url, SSL: false, SubDomain: wp.SubDomain, Routing: wp.Routing, WildCard: false}
 	obj.Sites = append(obj.Sites, newSite)
 	back, _ := json.MarshalIndent(obj, "", "  ")
 	ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
@@ -237,7 +227,7 @@ func addCert(wp wpcert) error {
 
 	for i, site := range obj.Sites {
 		if wp.AppName == site.Name {
-			if wp.Url == site.PrimaryDomain.Name {
+			if wp.Url == site.PrimaryDomain.Url {
 				_, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("service hosting stop; certbot certonly --standalone --dry-run -d %s", wp.Url)).Output()
 				if err != nil {
 					return echo.NewHTTPError(404, "Error with cert config")
@@ -284,6 +274,7 @@ type Site struct {
 	PrimaryDomain Domain   `json:"primaryDomain"`
 	AliasDomain   []Domain `json:"aliasDomain"`
 	Cache         string   `json:"cache"`
+	Exclude       []string `json:"exclude"`
 }
 
 type Config struct {
@@ -294,7 +285,7 @@ type Config struct {
 }
 
 type Domain struct {
-	Name      string `json:"name"`
+	Url       string `json:"url"`
 	SubDomain bool   `json:"subDomain"`
 	SSL       bool   `json:"ssl"`
 	WildCard  bool   `json:"wildcard"`
