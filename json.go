@@ -48,25 +48,25 @@ frontend nonssl
 	bind *:443 ssl crt /opt/Hosting/certs/ alpn h2,http/1.1
 	http-request set-header X-Forwarded-Proto https if { ssl_fc }`
 	}
-	for _, frontend := range obj.Sites {
-		if frontend.PrimaryDomain.SubDomain == true {
-			conf = conf + fmt.Sprintf(`acl host_%s hdr(host) -i %s`, frontend.Name, frontend.PrimaryDomain.Url)
-			if frontend.PrimaryDomain.WildCard == true {
-				conf = conf + fmt.Sprintf(`acl host_%s hdr_dom(host) -i %s`, frontend.Name, frontend.PrimaryDomain.Url)
-			}
-		} else {
-			conf = conf + fmt.Sprintf(`acl host_%s hdr(host) -i %s`, frontend.Name, frontend.PrimaryDomain.Url)
-			if frontend.PrimaryDomain.WildCard == true {
-				conf = conf + fmt.Sprintf(`	acl host_%s hdr_dom(host) -i %s`, frontend.Name, frontend.PrimaryDomain.Url)
-			}
-			if frontend.PrimaryDomain.Routing == "www" {
-				conf = conf + fmt.Sprintf(`	redirect prefix http://www.%s code 301 if { hdr(host) -i %s }`, frontend.PrimaryDomain.Url, frontend.PrimaryDomain.Url)
-			}
-			if frontend.PrimaryDomain.Routing == "root" {
-				conf = conf + fmt.Sprintf(`	redirect prefix http://%s code 301 if { hdr(host) -i www.%s }`, frontend.PrimaryDomain.Url, frontend.PrimaryDomain.Url)
-			}
-		}
-	}
+	// for _, frontend := range obj.Sites {
+	// 	if frontend.PrimaryDomain.SubDomain == true {
+	// 		conf = conf + fmt.Sprintf(`acl host_%s hdr(host) -i %s`, frontend.Name, frontend.PrimaryDomain.Url)
+	// 		if frontend.PrimaryDomain.WildCard == true {
+	// 			conf = conf + fmt.Sprintf(`acl host_%s hdr_dom(host) -i %s`, frontend.Name, frontend.PrimaryDomain.Url)
+	// 		}
+	// 	} else {
+	// 		conf = conf + fmt.Sprintf(`acl host_%s hdr(host) -i %s`, frontend.Name, frontend.PrimaryDomain.Url)
+	// 		if frontend.PrimaryDomain.WildCard == true {
+	// 			conf = conf + fmt.Sprintf(`	acl host_%s hdr_dom(host) -i %s`, frontend.Name, frontend.PrimaryDomain.Url)
+	// 		}
+	// 		if frontend.PrimaryDomain.Routing == "www" {
+	// 			conf = conf + fmt.Sprintf(`	redirect prefix http://www.%s code 301 if { hdr(host) -i %s }`, frontend.PrimaryDomain.Url, frontend.PrimaryDomain.Url)
+	// 		}
+	// 		if frontend.PrimaryDomain.Routing == "root" {
+	// 			conf = conf + fmt.Sprintf(`	redirect prefix http://%s code 301 if { hdr(host) -i www.%s }`, frontend.PrimaryDomain.Url, frontend.PrimaryDomain.Url)
+	// 		}
+	// 	}
+	// }
 
 	if len(obj.Sites) == 0 {
 		conf = conf + `
@@ -84,7 +84,7 @@ frontend nonssl
     use_backend static if static_file`
 
 	for _, frontend := range obj.Sites {
-		conf = conf + fmt.Sprintf("\nuse_backend %s if", frontend.Name)
+		conf = conf + fmt.Sprintf("\nuse_backend %s if ", frontend.Name)
 		conf = conf + fmt.Sprintf("{ hdr(host) -i %s }", frontend.PrimaryDomain.Url)
 		for _, frontendurls := range frontend.AliasDomain {
 			conf = conf + fmt.Sprintf("{ hdr(host) -i %s }", frontendurls.Url)
