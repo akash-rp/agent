@@ -321,8 +321,11 @@ func addDomain(c echo.Context) error {
 			}
 		}
 	}
-	siteString := strings.Join(siteArray, ",")	
-	exec.Command("/bin/bash", "-c", fmt.Sprintf("sed 's/VhDomain.*/VhDomain %s/' %s", siteString, path)).Output()
+	siteString := strings.Join(siteArray, ",")
+	_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("sed 's/VhDomain.*/VhDomain %s/' %s", siteString, path)).CombinedOutput()
+	if err != nil {
+		return c.JSON(http.StatusBadGateway, err)
+	}
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("%s, %s >> /root/cl.txt")).Output()
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("service lshttpd restart")).Output()
 
