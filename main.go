@@ -27,6 +27,7 @@ func main() {
 	e.GET("/hositng", hosting)
 	e.POST("/cert", cert)
 	e.GET("/sites", getSites)
+	e.POST("/domainadd", addDomain)
 	e.Logger.Fatal(e.Start(":8081"))
 }
 
@@ -285,9 +286,56 @@ func hosting(c echo.Context) error {
 func cert(c echo.Context) error {
 	wp := new(wpcert)
 	c.Bind(&wp)
+
 	err := addCert(*wp)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err)
+	}
+	return c.String(http.StatusOK, "Success")
+}
+
+func addDomain(c echo.Context) error {
+	Domain := new(DomainAdd)
+	c.Bind(&Domain)
+	data, err := ioutil.ReadFile("/usr/Hosting/config.json")
+	if err != nil {
+		return echo.NewHTTPError(404, "Config file not found")
+	}
+	var obj Config
+
+	// unmarshall it
+	err = json.Unmarshal(data, &obj)
+	if err != nil {
+		return echo.NewHTTPError(400, "JSON data error")
+	}
+
+	obj.Sites = Domain.Sites
+	siteArray := []string{}
+	path := ""
+	for _, site := range obj.Sites {
+		if site.Name == Domain.Name {
+			path = fmt.Sprintf("/usr/local/lsws/conf/vhosts/%s.d/main.conf", site.Name)
+			siteArray = append(siteArray, site.PrimaryDomain.Url)
+			for _, ali := range site.AliasDomain {
+				siteArray = append(siteArray, ali.Url)
+			}
+
+		}
+	}
+	siteString := strings.Join(siteArray, ",")
+
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("sed 's/VhDomain.*/VhDomain %s' %s", siteString, path)).CombinedOutput()
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("service lshttpd restart")).CombinedOutput()
+
+	back, _ := json.MarshalIndent(obj, "", "  ")
+	ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
+	err = configNuster()
+	if err != nil {
+		result := &errcode{
+			Code:    110,
+			Message: "Error occured while configuring nuster",
+		}
+		return c.JSON(http.StatusBadRequest, result)
 	}
 	return c.String(http.StatusOK, "Success")
 }
@@ -304,16 +352,17 @@ type systemstats struct {
 }
 
 type wpadd struct {
-	AppName       string `json:"appName"`
-	UserName      string `json:"userName"`
-	Url           string `json:"url"`
-	Title         string `json:"title"`
-	AdminUser     string `json:"adminUser"`
-	AdminPassword string `json:"adminPassword"`
-	AdminEmail    string `json:"adminEmail"`
-	SubDomain     bool   `json:"subdomain"`
-	Routing       string `json:"routing"`
-	Sites         []Site `json:"sites"`
+	AppName       string   `json:"appName"`
+	UserName      string   `json:"userName"`
+	Url           string   `json:"url"`
+	Title         string   `json:"title"`
+	AdminUser     string   `json:"adminUser"`
+	AdminPassword string   `json:"adminPassword"`
+	AdminEmail    string   `json:"adminEmail"`
+	SubDomain     bool     `json:"subdomain"`
+	Routing       string   `json:"routing"`
+	Sites         []Site   `json:"sites"`
+	Exclude       []string `json:"exclude"`
 }
 
 type db struct {
@@ -338,4 +387,9 @@ type wpcert struct {
 type errcode struct {
 	Code    int    `json:"code"`
 	Message string `json:message`
+}
+
+type DomainAdd struct {
+	Name  string `json:"name"`
+	Sites []Site `json:"sites"`
 }
