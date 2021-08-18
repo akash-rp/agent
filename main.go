@@ -319,13 +319,13 @@ func addDomain(c echo.Context) error {
 			for _, ali := range site.AliasDomain {
 				siteArray = append(siteArray, ali.Url)
 			}
-
 		}
 	}
 	siteString := strings.Join(siteArray, ",")
 
-	exec.Command("/bin/bash", "-c", fmt.Sprintf("sed 's/VhDomain.*/VhDomain %s' %s", siteString, path)).CombinedOutput()
-	exec.Command("/bin/bash", "-c", fmt.Sprintf("service lshttpd restart")).CombinedOutput()
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("sed 's/VhDomain.*/VhDomain %s' %s", siteString, path)).Output()
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("%s, %s >> /root/cl.txt")).Output()
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("service lshttpd restart")).Output()
 
 	back, _ := json.MarshalIndent(obj, "", "  ")
 	ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
