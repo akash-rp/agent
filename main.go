@@ -322,7 +322,8 @@ func addDomain(c echo.Context) error {
 		}
 	}
 	siteString := strings.Join(siteArray, ",")
-
+	log.Print(siteString)
+	log.Print(path)
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("sed 's/VhDomain.*/VhDomain %s' %s", siteString, path)).Output()
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("%s, %s >> /root/cl.txt")).Output()
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("service lshttpd restart")).Output()
