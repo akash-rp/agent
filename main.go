@@ -322,12 +322,8 @@ func addDomain(c echo.Context) error {
 		}
 	}
 	siteString := strings.Join(siteArray, ",")
-	log.Print(fmt.Sprintf("sed 's/VhDomain.*/VhDomain %s/' %s", siteString, path))
-	sed, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("sed 's/VhDomain.*/VhDomain %s/' %s", siteString, path)).CombinedOutput()
-	log.Print(string(sed))
-	if err != nil {
-		return c.JSON(http.StatusBadGateway, err)
-	}
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i 's/VhDomain.*/VhDomain %s/' %s", siteString, path)).CombinedOutput()
+
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("%s, %s >> /root/cl.txt")).Output()
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("service lshttpd restart")).Output()
 
@@ -341,7 +337,7 @@ func addDomain(c echo.Context) error {
 		}
 		return c.JSON(http.StatusBadRequest, result)
 	}
-	return c.String(http.StatusOK, string(sed))
+	return c.String(http.StatusOK, "success")
 }
 
 type systemstats struct {
