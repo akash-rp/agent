@@ -27,7 +27,8 @@ func main() {
 	e.GET("/hositng", hosting)
 	e.POST("/cert", cert)
 	e.GET("/sites", getSites)
-	e.POST("/domainadd", addDomain)
+	e.POST("/domainedit", editDomain)
+
 	e.Logger.Fatal(e.Start(":8081"))
 }
 
@@ -292,8 +293,8 @@ func cert(c echo.Context) error {
 	return c.String(http.StatusOK, "Success")
 }
 
-func addDomain(c echo.Context) error {
-	Domain := new(DomainAdd)
+func editDomain(c echo.Context) error {
+	Domain := new(DomainEdit)
 	c.Bind(&Domain)
 	data, err := ioutil.ReadFile("/usr/Hosting/config.json")
 	if err != nil {
@@ -320,9 +321,8 @@ func addDomain(c echo.Context) error {
 		}
 	}
 	siteString := strings.Join(siteArray, ",")
-	exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i 's/VhDomain.*/VhDomain %s/' %s", siteString, path)).CombinedOutput()
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i 's/VhDomain.*/VhDomain %s/' %s", siteString, path)).Output()
 
-	exec.Command("/bin/bash", "-c", fmt.Sprintf("%s, %s >> /root/cl.txt")).Output()
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("service lshttpd restart")).Output()
 
 	back, _ := json.MarshalIndent(obj, "", "  ")
@@ -388,7 +388,7 @@ type errcode struct {
 	Message string `json:message`
 }
 
-type DomainAdd struct {
+type DomainEdit struct {
 	Name  string `json:"name"`
 	Sites []Site `json:"sites"`
 }
