@@ -207,8 +207,8 @@ func wpAdd(c echo.Context) error {
 		}
 		return c.JSON(http.StatusBadRequest, result)
 	}
-	exec.Command("/bin/bash", "-c", "service hosting stop").Output()
-	exec.Command("/bin/bash", "-c", "service hosting start").Output()
+	exec.Command("/bin/bash", "-c", "service hosting restart").Output()
+
 	return c.JSON(http.StatusOK, dbCred)
 
 }
@@ -239,8 +239,7 @@ func wpDelete(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "Cannot config nuster file")
 	}
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i '/%s\\/%s/d' /etc/incron.d/sites.txt", wp.UserName, wp.AppName)).Output()
-	exec.Command("/bin/bash", "-c", "service hosting stop").Output()
-	exec.Command("/bin/bash", "-c", "service hosting start").Output()
+	exec.Command("/bin/bash", "-c", "service hosting restart").Output()
 
 	return c.String(http.StatusOK, "Delete success")
 }
@@ -278,8 +277,7 @@ func hosting(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	exec.Command("/bin/bash", "-c", "service hosting stop").Output()
-	exec.Command("/bin/bash", "-c", "service hosting start").Output()
+	exec.Command("/bin/bash", "-c", "service hosting restart").Output()
 	return c.String(http.StatusOK, "Success")
 }
 
@@ -337,6 +335,7 @@ func addDomain(c echo.Context) error {
 		}
 		return c.JSON(http.StatusBadRequest, result)
 	}
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("service hosting restart")).Output()
 	return c.String(http.StatusOK, "success")
 }
 
