@@ -50,17 +50,21 @@ frontend nonssl
 	}
 	for _, frontend := range obj.Sites {
 		if frontend.PrimaryDomain.Routing == "www" {
-			conf = conf + fmt.Sprintf(`	redirect prefix http://www.%s code 301 if { hdr(host) -i %s }`, frontend.PrimaryDomain.Url, frontend.PrimaryDomain.Url)
+			conf = conf + fmt.Sprintf(`
+	redirect prefix http://www.%s code 301 if { hdr(host) -i %s }`, frontend.PrimaryDomain.Url, frontend.PrimaryDomain.Url)
 		}
 		if frontend.PrimaryDomain.Routing == "root" {
-			conf = conf + fmt.Sprintf(`	redirect prefix http://%s code 301 if { hdr(host) -i www.%s }`, frontend.PrimaryDomain.Url, frontend.PrimaryDomain.Url)
+			conf = conf + fmt.Sprintf(`	
+	redirect prefix http://%s code 301 if { hdr(host) -i www.%s }`, frontend.PrimaryDomain.Url, frontend.PrimaryDomain.Url)
 		}
 		for _, alias := range frontend.AliasDomain {
 			if alias.Routing == "www" {
-				conf = conf + fmt.Sprintf(` redirect prefix http://www.%s code 301 if { hdr(host) -i %s }`, alias.Url, alias.Url)
+				conf = conf + fmt.Sprintf(` 
+	redirect prefix http://www.%s code 301 if { hdr(host) -i %s }`, alias.Url, alias.Url)
 			}
 			if alias.Routing == "root" {
-				conf = conf + fmt.Sprintf(` redirect prefix http://%s code 301 if { hdr(host) -i www.%s }`, alias.Url, alias.Url)
+				conf = conf + fmt.Sprintf(`
+	redirect prefix http://%s code 301 if { hdr(host) -i www.%s }`, alias.Url, alias.Url)
 			}
 		}
 	}
