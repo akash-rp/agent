@@ -315,8 +315,14 @@ func editDomain(c echo.Context) error {
 		if site.Name == Domain.Name {
 			path = fmt.Sprintf("/usr/local/lsws/conf/vhosts/%s.d/main.conf", site.Name)
 			siteArray = append(siteArray, site.PrimaryDomain.Url)
+			if site.PrimaryDomain.WildCard {
+				siteArray = append(siteArray, "*."+site.PrimaryDomain.Url)
+			}
 			for _, ali := range site.AliasDomain {
 				siteArray = append(siteArray, ali.Url)
+				if ali.WildCard {
+					siteArray = append(siteArray, "*."+ali.Url)
+				}
 			}
 		}
 	}
