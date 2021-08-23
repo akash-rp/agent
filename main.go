@@ -28,7 +28,7 @@ func main() {
 	e.POST("/cert", cert)
 	e.GET("/sites", getSites)
 	e.POST("/domainedit", editDomain)
-
+	e.POST("/changeprimary", changePrimary)
 	e.Logger.Fatal(e.Start(":8081"))
 }
 
@@ -324,6 +324,7 @@ func editDomain(c echo.Context) error {
 					siteArray = append(siteArray, "*."+ali.Url)
 				}
 			}
+			break
 		}
 	}
 	siteString := strings.Join(siteArray, ",")
@@ -343,6 +344,30 @@ func editDomain(c echo.Context) error {
 	}
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("service hosting restart")).Output()
 	return c.String(http.StatusOK, "success")
+}
+
+func changePrimary(c echo.Context) error {
+	Domain := new(PrimaryChange)
+	c.Bind(&Domain)
+	data, err := ioutil.ReadFile("/usr/Hosting/config.json")
+	if err != nil {
+		return echo.NewHTTPError(404, "Config file not found")
+	}
+	var obj Config
+
+	// unmarshall it
+	err = json.Unmarshal(data, &obj)
+	if err != nil {
+		return echo.NewHTTPError(400, "JSON data error")
+	}
+
+	obj.Sites = Domain.Sites
+	back, _ := json.MarshalIndent(obj, "", "  ")
+	ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
+	path := fmt.Sprintf("/home/%s/%s", Domain.User, Domain.Name)
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %s -i -- /usr/Hosting/wp-cli search-replace '%s' '%s' --path='%s' --skip-columns=guid ", Domain.User, Domain.AliasUrl, Domain.MainUrl, path)).Output()
+	return c.String(http.StatusOK, "success")
+
 }
 
 type systemstats struct {
@@ -397,4 +422,12 @@ type errcode struct {
 type DomainEdit struct {
 	Name  string `json:"name"`
 	Sites []Site `json:"sites"`
+}
+
+type PrimaryChange struct {
+	Name     string `json:"name"`
+	Sites    []Site `json:"sites"`
+	MainUrl  string `json:"mainUrl`
+	AliasUrl string `json:"aliasUrl"`
+	User     string `json:"user"`
 }
