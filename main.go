@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/labstack/echo/v4"
+	"github.com/sethvargo/go-password/password"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -10,9 +12,6 @@ import (
 	"os/exec"
 	"os/user"
 	"strings"
-
-	"github.com/labstack/echo/v4"
-	"github.com/sethvargo/go-password/password"
 )
 
 var obj Config
