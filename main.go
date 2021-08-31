@@ -13,6 +13,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/sethvargo/go-password/password"
+	"gopkg.in/ini.v1"
 )
 
 var obj Config
@@ -32,6 +33,7 @@ func main() {
 	e.POST("/domainedit", editDomain)
 	e.POST("/changeprimary", changePrimary)
 	e.POST("/changePHP", changePHP)
+	e.POST("/getPHPini", getPHPini)
 	e.Logger.Fatal(e.Start(":8081"))
 }
 
@@ -393,6 +395,16 @@ func changePHP(c echo.Context) error {
 
 }
 
+func getPHPini(c echo.Context) error {
+	name := new(Name)
+	c.Bind(&name)
+	path := fmt.Sprintf("/usr/local/lsws/php-ini/%s-php.ini", name.Name)
+	cfg, _ := ini.Load(path)
+	var php PHPini
+	cfg.Section("PHP").MapTo(&php)
+	return c.JSON(http.StatusOK, php)
+}
+
 type systemstats struct {
 	Cores       string `json:"cores"`
 	Cpu         string `json:"cpu"`
@@ -460,4 +472,20 @@ type PHPChange struct {
 	Sites  []Site `json:"sites"`
 	OldPHP string `json:"oldphp"`
 	NewPHP string `json:"newphp"`
+}
+
+type PHPini struct {
+	MaxExecutionTime      string `ini:"max_execution_time"`
+	MaxFileUploads        string `ini:"max_file_uploads"`
+	MaxInputTime          string `ini:"max_input_time"`
+	MaxInputVars          string `ini:"max_input_vars"`
+	MemoryLimit           string `ini:"memory_limit"`
+	PostMaxSize           string `ini:"post_max_size"`
+	SessionCookieLifetime string `ini:"session.cookie_lifetime"`
+	SessionGcMaxlifetime  string `ini:"session.gc_maxlifetime"`
+	UploadMaxFilesize     string `ini:"upload_max_filesize"`
+}
+
+type Name struct {
+	Name string `json:"name"`
 }
