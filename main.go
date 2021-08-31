@@ -18,14 +18,13 @@ import (
 var obj Config
 
 func main() {
-	err := configNuster()
 	e := echo.New()
-	if err != nil {
-		e.Logger.Fatal(err)
+	if e != nil {
+		e.Logger.Fatal(e)
 	}
 	data, _ := ioutil.ReadFile("/usr/Hosting/config.json")
 	json.Unmarshal(data, &obj)
-	log.Print(obj)
+	configNuster()
 	e.GET("/serverstats", serverStats)
 	e.POST("/wp/add", wpAdd)
 	e.POST("/wp/delete", wpDelete)
