@@ -3,8 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/labstack/echo/v4"
-	"github.com/sethvargo/go-password/password"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -12,6 +10,9 @@ import (
 	"os/exec"
 	"os/user"
 	"strings"
+
+	"github.com/labstack/echo/v4"
+	"github.com/sethvargo/go-password/password"
 )
 
 var obj Config
@@ -24,6 +25,7 @@ func main() {
 	}
 	data, _ := ioutil.ReadFile("/usr/Hosting/config.json")
 	json.Unmarshal(data, &obj)
+	log.Print(obj)
 	e.GET("/serverstats", serverStats)
 	e.POST("/wp/add", wpAdd)
 	e.POST("/wp/delete", wpDelete)
