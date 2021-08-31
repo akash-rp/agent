@@ -19,12 +19,10 @@ var obj Config
 
 func main() {
 	e := echo.New()
-	if e != nil {
-		e.Logger.Fatal(e)
-	}
 	data, _ := ioutil.ReadFile("/usr/Hosting/config.json")
 	json.Unmarshal(data, &obj)
 	configNuster()
+	log.Print(obj)
 	e.GET("/serverstats", serverStats)
 	e.POST("/wp/add", wpAdd)
 	e.POST("/wp/delete", wpDelete)
