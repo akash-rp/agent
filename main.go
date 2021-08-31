@@ -29,6 +29,7 @@ func main() {
 	e.GET("/sites", getSites)
 	e.POST("/domainedit", editDomain)
 	e.POST("/changeprimary", changePrimary)
+	e.POST("/changePHP", changePHP)
 	e.Logger.Fatal(e.Start(":8081"))
 }
 
@@ -225,11 +226,7 @@ func wpDelete(c echo.Context) error {
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("rm -rf /usr/local/lsws/conf/vhosts/%s.d", wp.AppName)).Output()
 	exec.Command("/bin/bash", "-c", "killall lsphp").Output()
 	exec.Command("/bin/bash", "-c", "service lsws restart").Output()
-	path = fmt.Sprintf("/home/%s", wp.UserName)
-	lsByte, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("ls %s", path)).Output()
-	lsStirng := string(lsByte)
-	lsSlice := strings.Split(lsStirng, "\n")
-	lsSlice = lsSlice[:len(lsSlice)-1]
+
 	err := deleteSiteFromJSON(*wp)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Cannot delete from Json file")
@@ -328,9 +325,9 @@ func editDomain(c echo.Context) error {
 		}
 	}
 	siteString := strings.Join(siteArray, ",")
-	exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i 's/VhDomain.*/VhDomain %s/' %s", siteString, path)).Output()
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i '/^#/!s/VhDomain.*/VhDomain %s/' %s", siteString, path)).Output()
 
-	exec.Command("/bin/bash", "-c", fmt.Sprintf("service lshttpd restart")).Output()
+	exec.Command("/bin/bash", "-c", "service lshttpd restart").Output()
 
 	back, _ := json.MarshalIndent(obj, "", "  ")
 	ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
@@ -342,7 +339,7 @@ func editDomain(c echo.Context) error {
 		}
 		return c.JSON(http.StatusBadRequest, result)
 	}
-	exec.Command("/bin/bash", "-c", fmt.Sprintf("service hosting restart")).Output()
+	exec.Command("/bin/bash", "-c", "service hosting restart").Output()
 	return c.String(http.StatusOK, "success")
 }
 
@@ -366,6 +363,30 @@ func changePrimary(c echo.Context) error {
 	ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
 	path := fmt.Sprintf("/home/%s/%s", Domain.User, Domain.Name)
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %s -i -- /usr/Hosting/wp-cli search-replace '%s' '%s' --path='%s' --skip-columns=guid ", Domain.User, Domain.AliasUrl, Domain.MainUrl, path)).Output()
+	return c.String(http.StatusOK, "success")
+
+}
+
+func changePHP(c echo.Context) error {
+	PHPDetails := new(PHPChange)
+	c.Bind(&PHPDetails)
+	data, err := ioutil.ReadFile("/usr/Hosting/config.json")
+	if err != nil {
+		return echo.NewHTTPError(404, "Config file not found")
+	}
+	var obj Config
+
+	// unmarshall it
+	err = json.Unmarshal(data, &obj)
+	if err != nil {
+		return echo.NewHTTPError(400, "JSON data error")
+	}
+	obj.Sites = PHPDetails.Sites
+	back, _ := json.MarshalIndent(obj, "", "  ")
+	ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i '/^#/!s|path /usr/local/lsws/%s/bin/lsphp|path /usr/local/lsws/%s/bin/lsphp|' /usr/local/lsws/conf/vhosts/%s.d/handlers/extphp.conf", PHPDetails.OldPHP, PHPDetails.NewPHP, PHPDetails.Name)).Output()
+	exec.Command("/bin/bash", "-c", "service lshttpd restart").Start()
+	exec.Command("/bin/bash", "-c", "killall lsphp").Start()
 	return c.String(http.StatusOK, "success")
 
 }
@@ -416,7 +437,7 @@ type wpcert struct {
 
 type errcode struct {
 	Code    int    `json:"code"`
-	Message string `json:message`
+	Message string `json:"message"`
 }
 
 type DomainEdit struct {
@@ -427,7 +448,14 @@ type DomainEdit struct {
 type PrimaryChange struct {
 	Name     string `json:"name"`
 	Sites    []Site `json:"sites"`
-	MainUrl  string `json:"mainUrl`
+	MainUrl  string `json:"mainUrl"`
 	AliasUrl string `json:"aliasUrl"`
 	User     string `json:"user"`
+}
+
+type PHPChange struct {
+	Name   string `json:"name"`
+	Sites  []Site `json:"sites"`
+	OldPHP string `json:"oldphp"`
+	NewPHP string `json:"newphp"`
 }
