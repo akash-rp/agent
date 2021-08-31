@@ -15,12 +15,16 @@ import (
 	"github.com/sethvargo/go-password/password"
 )
 
+var obj Config
+
 func main() {
 	err := configNuster()
 	e := echo.New()
 	if err != nil {
 		e.Logger.Fatal(err)
 	}
+	data, _ := ioutil.ReadFile("/usr/Hosting/config.json")
+	json.Unmarshal(data, &obj)
 	e.GET("/serverstats", serverStats)
 	e.POST("/wp/add", wpAdd)
 	e.POST("/wp/delete", wpDelete)
@@ -293,17 +297,17 @@ func cert(c echo.Context) error {
 func editDomain(c echo.Context) error {
 	Domain := new(DomainEdit)
 	c.Bind(&Domain)
-	data, err := ioutil.ReadFile("/usr/Hosting/config.json")
-	if err != nil {
-		return echo.NewHTTPError(404, "Config file not found")
-	}
-	var obj Config
+	// data, err := ioutil.ReadFile("/usr/Hosting/config.json")
+	// if err != nil {
+	// 	return echo.NewHTTPError(404, "Config file not found")
+	// }
+	// var obj Config
 
-	// unmarshall it
-	err = json.Unmarshal(data, &obj)
-	if err != nil {
-		return echo.NewHTTPError(400, "JSON data error")
-	}
+	// // unmarshall it
+	// err = json.Unmarshal(data, &obj)
+	// if err != nil {
+	// 	return echo.NewHTTPError(400, "JSON data error")
+	// }
 
 	obj.Sites = Domain.Sites
 	siteArray := []string{}
@@ -331,7 +335,7 @@ func editDomain(c echo.Context) error {
 
 	back, _ := json.MarshalIndent(obj, "", "  ")
 	ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
-	err = configNuster()
+	err := configNuster()
 	if err != nil {
 		result := &errcode{
 			Code:    110,
@@ -346,17 +350,17 @@ func editDomain(c echo.Context) error {
 func changePrimary(c echo.Context) error {
 	Domain := new(PrimaryChange)
 	c.Bind(&Domain)
-	data, err := ioutil.ReadFile("/usr/Hosting/config.json")
-	if err != nil {
-		return echo.NewHTTPError(404, "Config file not found")
-	}
-	var obj Config
+	// data, err := ioutil.ReadFile("/usr/Hosting/config.json")
+	// if err != nil {
+	// 	return echo.NewHTTPError(404, "Config file not found")
+	// }
+	// var obj Config
 
-	// unmarshall it
-	err = json.Unmarshal(data, &obj)
-	if err != nil {
-		return echo.NewHTTPError(400, "JSON data error")
-	}
+	// // unmarshall it
+	// err = json.Unmarshal(data, &obj)
+	// if err != nil {
+	// 	return echo.NewHTTPError(400, "JSON data error")
+	// }
 
 	obj.Sites = Domain.Sites
 	back, _ := json.MarshalIndent(obj, "", "  ")
@@ -370,17 +374,17 @@ func changePrimary(c echo.Context) error {
 func changePHP(c echo.Context) error {
 	PHPDetails := new(PHPChange)
 	c.Bind(&PHPDetails)
-	data, err := ioutil.ReadFile("/usr/Hosting/config.json")
-	if err != nil {
-		return echo.NewHTTPError(404, "Config file not found")
-	}
-	var obj Config
+	// data, err := ioutil.ReadFile("/usr/Hosting/config.json")
+	// if err != nil {
+	// 	return echo.NewHTTPError(404, "Config file not found")
+	// }
+	// var obj Config
 
-	// unmarshall it
-	err = json.Unmarshal(data, &obj)
-	if err != nil {
-		return echo.NewHTTPError(400, "JSON data error")
-	}
+	// // unmarshall it
+	// err = json.Unmarshal(data, &obj)
+	// if err != nil {
+	// 	return echo.NewHTTPError(400, "JSON data error")
+	// }
 	obj.Sites = PHPDetails.Sites
 	back, _ := json.MarshalIndent(obj, "", "  ")
 	ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
