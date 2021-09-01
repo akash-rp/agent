@@ -413,7 +413,7 @@ func updatePHPini(c echo.Context) error {
 	ini.ReflectFrom(cfg, php)
 	cfg.SaveTo(fmt.Sprintf("/usr/local/lsws/php-ini/%s-php.ini", name))
 	exec.Command("/bin/bash", "-c", "service lshttpd restart").Run()
-	exec.Command("/bin/bash", "-c", "killall lsphp")
+	exec.Command("/bin/bash", "-c", "killall lsphp").Run()
 	return c.JSON(http.StatusOK, "success")
 }
 
