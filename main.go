@@ -229,8 +229,8 @@ func wpDelete(c echo.Context) error {
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -e \"DROP USER '%s'@'localhost';\"", wp.DbUser)).Output()
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("rm /usr/local/lsws/conf/vhosts/%s.conf", wp.AppName)).Output()
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("rm -rf /usr/local/lsws/conf/vhosts/%s.d", wp.AppName)).Output()
-	exec.Command("/bin/bash", "-c", "killall lsphp").Output()
-	exec.Command("/bin/bash", "-c", "service lsws restart").Output()
+	exec.Command("/bin/bash", "-c", "killall lsphp").Start()
+	exec.Command("/bin/bash", "-c", "service lsws restart").Start()
 
 	err := deleteSiteFromJSON(*wp)
 	if err != nil {
@@ -242,7 +242,7 @@ func wpDelete(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "Cannot config nuster file")
 	}
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i '/%s\\/%s/d' /etc/incron.d/sites.txt", wp.UserName, wp.AppName)).Output()
-	exec.Command("/bin/bash", "-c", "service hosting restart").Output()
+	exec.Command("/bin/bash", "-c", "service hosting restart").Start()
 
 	return c.String(http.StatusOK, "Delete success")
 }
@@ -280,7 +280,7 @@ func hosting(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	exec.Command("/bin/bash", "-c", "service hosting restart").Output()
+	exec.Command("/bin/bash", "-c", "service hosting restart").Start()
 	return c.String(http.StatusOK, "Success")
 }
 
@@ -332,7 +332,7 @@ func editDomain(c echo.Context) error {
 	siteString := strings.Join(siteArray, ",")
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i '/^#/!s/VhDomain.*/VhDomain %s/' %s", siteString, path)).Output()
 
-	exec.Command("/bin/bash", "-c", "service lshttpd restart").Output()
+	exec.Command("/bin/bash", "-c", "service lshttpd restart").Start()
 
 	back, _ := json.MarshalIndent(obj, "", "  ")
 	ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
@@ -344,7 +344,7 @@ func editDomain(c echo.Context) error {
 		}
 		return c.JSON(http.StatusBadRequest, result)
 	}
-	exec.Command("/bin/bash", "-c", "service hosting restart").Output()
+	exec.Command("/bin/bash", "-c", "service hosting restart").Start()
 	return c.String(http.StatusOK, "success")
 }
 
