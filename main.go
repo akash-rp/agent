@@ -400,18 +400,20 @@ func getPHPini(c echo.Context) error {
 	name := c.Param("name")
 	path := fmt.Sprintf("/usr/local/lsws/php-ini/%s-php.ini", name)
 	cfg, _ := ini.Load(path)
-	var php PHPini
+	var php PHP
 	cfg.Section("PHP").MapTo(&php)
 	return c.JSON(http.StatusOK, php)
 }
 
 func updatePHPini(c echo.Context) error {
-	php := new(PHP)
+	php := new(PHPini)
 	c.Bind(&php)
 	name := c.Param("name")
 	cfg := ini.Empty()
 	ini.ReflectFrom(cfg, php)
 	cfg.SaveTo(fmt.Sprintf("/usr/local/lsws/php-ini/%s-php.ini", name))
+	exec.Command("/bin/bash", "-c", "service lshttpd restart").Run()
+	exec.Command("/bin/bash", "-c", "killall lsphp")
 	return c.JSON(http.StatusOK, "success")
 }
 
@@ -484,7 +486,7 @@ type PHPChange struct {
 	NewPHP string `json:"newphp"`
 }
 
-type PHPini struct {
+type PHP struct {
 	MaxExecutionTime      string `ini:"max_execution_time"`
 	MaxFileUploads        string `ini:"max_file_uploads"`
 	MaxInputTime          string `ini:"max_input_time"`
@@ -497,6 +499,6 @@ type PHPini struct {
 	UploadMaxFilesize     string `ini:"upload_max_filesize"`
 }
 
-type PHP struct {
-	PHPini
+type PHPini struct {
+	PHP
 }
