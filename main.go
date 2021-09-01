@@ -23,7 +23,7 @@ func main() {
 	data, _ := ioutil.ReadFile("/usr/Hosting/config.json")
 	json.Unmarshal(data, &obj)
 	configNuster()
-	log.Print(obj)
+	log.Print("8:13AM")
 	e.GET("/serverstats", serverStats)
 	e.POST("/wp/add", wpAdd)
 	e.POST("/wp/delete", wpDelete)
@@ -483,6 +483,7 @@ type PHPini struct {
 	PostMaxSize           string `ini:"post_max_size"`
 	SessionCookieLifetime string `ini:"session.cookie_lifetime"`
 	SessionGcMaxlifetime  string `ini:"session.gc_maxlifetime"`
+	ShortOpenTag          string `ini:"short_open_tag"`
 	UploadMaxFilesize     string `ini:"upload_max_filesize"`
 }
 
