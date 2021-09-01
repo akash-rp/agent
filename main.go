@@ -33,7 +33,8 @@ func main() {
 	e.POST("/domainedit", editDomain)
 	e.POST("/changeprimary", changePrimary)
 	e.POST("/changePHP", changePHP)
-	e.POST("/getPHPini", getPHPini)
+	e.GET("/getPHPini/:name", getPHPini)
+	e.POST("/updatePHPini/:name", updatePHPini)
 	e.Logger.Fatal(e.Start(":8081"))
 }
 
@@ -396,13 +397,22 @@ func changePHP(c echo.Context) error {
 }
 
 func getPHPini(c echo.Context) error {
-	name := new(Name)
-	c.Bind(&name)
-	path := fmt.Sprintf("/usr/local/lsws/php-ini/%s-php.ini", name.Name)
+	name := c.Param("name")
+	path := fmt.Sprintf("/usr/local/lsws/php-ini/%s-php.ini", name)
 	cfg, _ := ini.Load(path)
 	var php PHPini
 	cfg.Section("PHP").MapTo(&php)
 	return c.JSON(http.StatusOK, php)
+}
+
+func updatePHPini(c echo.Context) error {
+	php := new(PHP)
+	c.Bind(&php)
+	name := c.Param("name")
+	cfg := ini.Empty()
+	ini.ReflectFrom(cfg, php)
+	cfg.SaveTo(fmt.Sprintf("/usr/local/lsws/php-ini/%s-php.ini", name))
+	return c.JSON(http.StatusOK, "success")
 }
 
 type systemstats struct {
@@ -487,6 +497,6 @@ type PHPini struct {
 	UploadMaxFilesize     string `ini:"upload_max_filesize"`
 }
 
-type Name struct {
-	Name string `json:"name"`
+type PHP struct {
+	PHPini
 }
