@@ -229,8 +229,8 @@ func wpDelete(c echo.Context) error {
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -e \"DROP USER '%s'@'localhost';\"", wp.DbUser)).Output()
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("rm /usr/local/lsws/conf/vhosts/%s.conf", wp.AppName)).Output()
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("rm -rf /usr/local/lsws/conf/vhosts/%s.d", wp.AppName)).Output()
-	defer exec.Command("/bin/bash", "-c", "killall lsphp").Output()
-	defer exec.Command("/bin/bash", "-c", "service lsws restart").Output()
+	go exec.Command("/bin/bash", "-c", "killall lsphp").Output()
+	go exec.Command("/bin/bash", "-c", "service lsws restart").Output()
 
 	err := deleteSiteFromJSON(*wp)
 	if err != nil {
@@ -242,7 +242,7 @@ func wpDelete(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "Cannot config nuster file")
 	}
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i '/%s\\/%s/d' /etc/incron.d/sites.txt", wp.UserName, wp.AppName)).Output()
-	defer exec.Command("/bin/bash", "-c", "service hosting restart").Output()
+	go exec.Command("/bin/bash", "-c", "service hosting restart").Output()
 
 	return c.String(http.StatusOK, "Delete success")
 }
@@ -280,7 +280,7 @@ func hosting(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	defer exec.Command("/bin/bash", "-c", "service hosting restart").Output()
+	go exec.Command("/bin/bash", "-c", "service hosting restart").Output()
 	return c.String(http.StatusOK, "Success")
 }
 
@@ -412,8 +412,8 @@ func updatePHPini(c echo.Context) error {
 	cfg := ini.Empty()
 	ini.ReflectFrom(cfg, php)
 	cfg.SaveTo(fmt.Sprintf("/usr/local/lsws/php-ini/%s-php.ini", name))
-	defer exec.Command("/bin/bash", "-c", "service lshttpd restart").Output()
-	defer exec.Command("/bin/bash", "-c", "killall lsphp").Output()
+	go exec.Command("/bin/bash", "-c", "service lshttpd restart").Output()
+	go exec.Command("/bin/bash", "-c", "killall lsphp").Output()
 	return c.JSON(http.StatusOK, "success")
 }
 
