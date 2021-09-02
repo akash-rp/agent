@@ -132,9 +132,7 @@ procHardLimit 500
 		return echo.NewHTTPError(http.StatusBadRequest, "Error 13")
 	}
 	os.Chdir("/usr/Hosting/")
-	exec.Command("/bin/bash", "-c", "killall lsphp").Output()
-	if _, err := exec.Command("/bin/bash", "-c", "service lsws restart").Output(); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "Error 14")
-	}
+	defer exec.Command("/bin/bash", "-c", "killall lsphp").Output()
+	defer exec.Command("/bin/bash", "-c", "service lsws restart").Output()
 	return nil
 }
