@@ -332,7 +332,7 @@ func editDomain(c echo.Context) error {
 	siteString := strings.Join(siteArray, ",")
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i '/^#/!s/VhDomain.*/VhDomain %s/' %s", siteString, path)).Output()
 
-	defer exec.Command("/bin/bash", "-c", "service lshttpd restart").Output()
+	go exec.Command("/bin/bash", "-c", "service lshttpd restart").Output()
 
 	back, _ := json.MarshalIndent(obj, "", "  ")
 	ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
@@ -344,7 +344,7 @@ func editDomain(c echo.Context) error {
 		}
 		return c.JSON(http.StatusBadRequest, result)
 	}
-	defer exec.Command("/bin/bash", "-c", "service hosting restart").Output()
+	go exec.Command("/bin/bash", "-c", "service hosting restart").Output()
 	return c.String(http.StatusOK, "success")
 }
 
@@ -390,8 +390,8 @@ func changePHP(c echo.Context) error {
 	back, _ := json.MarshalIndent(obj, "", "  ")
 	ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i '/^#/!s|path /usr/local/lsws/%s/bin/lsphp|path /usr/local/lsws/%s/bin/lsphp|' /usr/local/lsws/conf/vhosts/%s.d/handlers/extphp.conf", PHPDetails.OldPHP, PHPDetails.NewPHP, PHPDetails.Name)).Output()
-	defer exec.Command("/bin/bash", "-c", "service lshttpd restart").Output()
-	defer exec.Command("/bin/bash", "-c", "killall lsphp").Output()
+	go exec.Command("/bin/bash", "-c", "service lshttpd restart").Output()
+	go exec.Command("/bin/bash", "-c", "killall lsphp").Output()
 	return c.String(http.StatusOK, "success")
 
 }
