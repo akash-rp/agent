@@ -10,6 +10,16 @@
       "server": 30
     }
   },
-  "sites": [],
+  "sites": [
+    {
+      "localBackup": {
+        "frequency": "1 Month",
+        "time": "10:59",
+        "minute": 5,
+        "Weekday": "Saturday",
+        "monthday": 12
+      }
+    }
+  ],
   "ssl": false
 }

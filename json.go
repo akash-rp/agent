@@ -157,7 +157,7 @@ func addSiteToJSON(wp wpadd) error {
 	// 	return echo.NewHTTPError(400, "JSON data error")
 	// }
 	obj.Sites = wp.Sites
-	newSite := Site{Name: wp.AppName, Cache: "off", Exclude: wp.Exclude}
+	newSite := Site{Name: wp.AppName, Cache: "off", Exclude: wp.Exclude, User: wp.UserName}
 	newSite.AliasDomain = []Domain{}
 
 	newSite.PrimaryDomain = Domain{Url: wp.Url, SSL: false, SubDomain: wp.SubDomain, Routing: wp.Routing, WildCard: false}
@@ -260,39 +260,3 @@ func addCert(wp wpcert) error {
 }
 
 // define data structure
-type Global struct {
-	Datasize int `json:"dataSize"`
-	Maxconn  int `json:"maxConnection"`
-}
-type Timeout struct {
-	Connect int `json:"connect"`
-	Client  int `json:"client"`
-	Server  int `json:"server"`
-}
-
-type Default struct {
-	Timeout Timeout `json:"timeout"`
-}
-
-type Site struct {
-	Name          string   `json:"name"`
-	PrimaryDomain Domain   `json:"primaryDomain"`
-	AliasDomain   []Domain `json:"aliasDomain"`
-	Cache         string   `json:"cache"`
-	Exclude       []string `json:"exclude"`
-}
-
-type Config struct {
-	Global  Global  `json:"global"`
-	Default Default `json:"defaults"`
-	Sites   []Site  `json:"sites"`
-	SSL     bool    `json:"ssl"`
-}
-
-type Domain struct {
-	Url       string `json:"url"`
-	SubDomain bool   `json:"subDomain"`
-	SSL       bool   `json:"ssl"`
-	WildCard  bool   `json:"wildcard"`
-	Routing   string `json:"routing"`
-}
