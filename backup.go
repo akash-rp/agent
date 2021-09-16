@@ -107,7 +107,7 @@ func addCronJob(backup Backup, name string, user string) error {
 		if backup.Automatic {
 			switch backup.Frequency {
 			case "Hourly":
-				_, err = cronInt.Cron(fmt.Sprintf("%d * * * *", backup.Time.Minute)).Tag(name).Do(func() {
+				_, err = cronInt.Cron(fmt.Sprintf("%s * * * *", backup.Time.Minute)).Tag(name).Do(func() {
 					takeBackup(name, user)
 				})
 				log.Panic(err)
@@ -117,44 +117,44 @@ func addCronJob(backup Backup, name string, user string) error {
 				cronInt.RunByTag(name)
 
 			case "Daily":
-				_, err = cronInt.Every(1).Day().At(fmt.Sprintf("%s", backup.Time)).Tag(name).Do(func() {
+				_, err = cronInt.Every(1).Day().At(fmt.Sprintf("%s:%s", backup.Time.Hour, backup.Time.Minute)).Tag(name).Do(func() {
 					takeBackup(name, user)
 				})
 			case "Weekly":
 				switch backup.Time.WeekDay {
 				case "Sunday":
-					_, err = cronInt.Every(1).Weekday(time.Sunday).At(fmt.Sprintf("%s", backup.Time)).Tag(name).Do(func() {
+					_, err = cronInt.Every(1).Weekday(time.Sunday).At(fmt.Sprintf("%s:%s", backup.Time.Hour, backup.Time.Minute)).Tag(name).Do(func() {
 						takeBackup(name, user)
 					})
 				case "Monday":
-					_, err = cronInt.Every(1).Weekday(time.Monday).At(fmt.Sprintf("%s", backup.Time)).Tag(name).Do(func() {
+					_, err = cronInt.Every(1).Weekday(time.Monday).At(fmt.Sprintf("%s:%s", backup.Time.Hour, backup.Time.Minute)).Tag(name).Do(func() {
 						takeBackup(name, user)
 					})
 				case "Tuesday":
-					_, err = cronInt.Every(1).Weekday(time.Tuesday).At(fmt.Sprintf("%s", backup.Time)).Tag(name).Do(func() {
+					_, err = cronInt.Every(1).Weekday(time.Tuesday).At(fmt.Sprintf("%s:%s", backup.Time.Hour, backup.Time.Minute)).Tag(name).Do(func() {
 						takeBackup(name, user)
 					})
 				case "Wednesday":
-					_, err = cronInt.Every(1).Weekday(time.Wednesday).At(fmt.Sprintf("%s", backup.Time)).Tag(name).Do(func() {
+					_, err = cronInt.Every(1).Weekday(time.Wednesday).At(fmt.Sprintf("%s:%s", backup.Time.Hour, backup.Time.Minute)).Tag(name).Do(func() {
 						takeBackup(name, user)
 					})
 				case "Thursday":
-					_, err = cronInt.Every(1).Weekday(time.Thursday).At(fmt.Sprintf("%s", backup.Time)).Tag(name).Do(func() {
+					_, err = cronInt.Every(1).Weekday(time.Thursday).At(fmt.Sprintf("%s:%s", backup.Time.Hour, backup.Time.Minute)).Tag(name).Do(func() {
 						takeBackup(name, user)
 					})
 				case "Friday":
-					_, err = cronInt.Every(1).Weekday(time.Friday).At(fmt.Sprintf("%s", backup.Time)).Tag(name).Do(func() {
+					_, err = cronInt.Every(1).Weekday(time.Friday).At(fmt.Sprintf("%s:%s", backup.Time.Hour, backup.Time.Minute)).Tag(name).Do(func() {
 						takeBackup(name, user)
 					})
 				case "Saturday":
-					_, err = cronInt.Every(1).Weekday(time.Saturday).At(fmt.Sprintf("%s", backup.Time)).Tag(name).Do(func() {
+					_, err = cronInt.Every(1).Weekday(time.Saturday).At(fmt.Sprintf("%s:%s", backup.Time.Hour, backup.Time.Minute)).Tag(name).Do(func() {
 						takeBackup(name, user)
 					})
 				}
 
 			case "Monthly":
 				day, _ := strconv.Atoi(backup.Time.MonthDay)
-				_, err = cronInt.Every(1).Month(day).At(fmt.Sprintf("%s", backup.Time)).Tag(name).Do(func() {
+				_, err = cronInt.Every(1).Month(day).At(fmt.Sprintf("%s:%s", backup.Time.Hour, backup.Time.Minute)).Tag(name).Do(func() {
 					takeBackup(name, user)
 				})
 			}
