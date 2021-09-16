@@ -40,7 +40,7 @@ func updateLocalBackup(c echo.Context) error {
 		cronInt.RemoveByTag(fmt.Sprintf("%s", name))
 		err := addCronJob(*backup, name, user)
 		if err != nil {
-			return c.JSON(echo.ErrNotFound.Code, "Error Adding Cron Job")
+			return c.JSON(echo.ErrNotFound.Code, err)
 		}
 		for _, site := range obj.Sites {
 			if site.Name == name {
@@ -110,6 +110,10 @@ func addCronJob(backup Backup, name string, user string) error {
 				_, err = cronInt.Cron(fmt.Sprintf("%d * * * *", backup.Time.Minute)).Tag(name).Do(func() {
 					takeBackup(name, user)
 				})
+				log.Panic(err)
+				if err != nil {
+					return errors.New(err.Error())
+				}
 				cronInt.RunByTag(name)
 
 			case "Daily":
