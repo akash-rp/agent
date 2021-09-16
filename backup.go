@@ -33,14 +33,14 @@ func updateLocalBackup(c echo.Context) error {
 	if backupType == "new" {
 		err := addNewBackup(name, user, *backup)
 		if err != nil {
-			return c.JSON(echo.ErrNotFound.Code, err)
+			return c.JSON(echo.ErrNotFound.Code, "Error adding new Backup")
 		}
 		return c.JSON(http.StatusOK, "")
 	} else if backupType == "existing" {
 		cronInt.RemoveByTag(fmt.Sprintf("%s", name))
 		err := addCronJob(*backup, name, user)
 		if err != nil {
-			return c.JSON(echo.ErrNotFound.Code, err)
+			return c.JSON(echo.ErrNotFound.Code, "Error Adding Cron Job")
 		}
 		for _, site := range obj.Sites {
 			if site.Name == name {
