@@ -128,9 +128,22 @@ type Domain struct {
 }
 
 type Backup struct {
-	Frequency string `json:"frequency"`
-	Minute    int    `json:"minute"`
-	Time      string `json:"time"`
-	MonthDay  int    `json:"monthday"`
-	WeekDay   string `json:"weekday"`
+	Automatic bool            `json:"automatic"`
+	Frequency string          `json:"frequency"`
+	Time      BackupTime      `json:"time"`
+	Retention BackupRetention `json:"retention"`
+}
+
+type BackupTime struct {
+	Hour     string `json:"hour"`
+	Minute   string `json:"minute"`
+	MonthDay string `json:"monthday"`
+	WeekDay  string `json:"weekday"`
+}
+
+type BackupRetention struct {
+	Hourly  string `json:"hourly"`
+	Daily   string `json:"daily"`
+	Weekly  string `json:"weekly"`
+	Monthly string `json:"monthly"`
 }

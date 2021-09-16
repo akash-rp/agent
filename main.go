@@ -39,6 +39,7 @@ func main() {
 	e.POST("/changePHP", changePHP)
 	e.GET("/getPHPini/:name", getPHPini)
 	e.POST("/updatePHPini/:name", updatePHPini)
+	e.POST("/localbackup/:type/:name/:user", updateLocalBackup)
 	e.Logger.Fatal(e.Start(":8081"))
 }
 
