@@ -24,7 +24,10 @@ var jobMap = make(map[string]*gocron.Job)
 
 func main() {
 	e := echo.New()
-	data, _ := ioutil.ReadFile("config.json")
+	data, err := ioutil.ReadFile("/usr/Hosting/config.json")
+	if err != nil {
+		log.Fatal("Cannot read file")
+	}
 	json.Unmarshal(data, &obj)
 	configNuster()
 	initCron()
