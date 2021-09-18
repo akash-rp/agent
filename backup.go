@@ -195,3 +195,8 @@ func addCronJob(backup Backup, name string, user string) error {
 	}
 	return nil
 }
+
+func nextrun(c echo.Context) error {
+	_, time := cronInt.NextRun()
+	return c.JSON(http.StatusOK, time)
+}
