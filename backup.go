@@ -427,21 +427,29 @@ func restoreBackup(c echo.Context) error {
 	if restoreType == "both" {
 		_, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia repository connect filesystem --path=/var/Backup/%s/%s --password=%s ; kopia restore %s /home/%s/%s", mode, name, name, id, user, name)).Output()
 		if err != nil {
+			log.Print(err)
+
 			return c.JSON(echo.ErrNotFound.Code, "Failed to Restore Backup from Backup System")
 		}
 		_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("myloader -d /home/%s/%s/DatabaseBackup -o", user, name)).Output()
 		if err != nil {
+			log.Print(err)
+
 			return c.JSON(echo.ErrNotFound.Code, "Failed to Restore Database")
 		}
 		exec.Command("/bin/bash", "-c", fmt.Sprintf("rm -rf /home/%s/%s/DatabaseBackup", user, name)).Output()
 		return c.JSON(http.StatusOK, "Success")
 	} else if restoreType == "db" {
-		_, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia repository connect filesystem --path=/var/Backup/%s/%s --password=%s ; kopia restore %s/DatabaseBackup /home/%s/%s", mode, name, name, id, user, name)).Output()
+		_, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia repository connect filesystem --path=/var/Backup/%s/%s --password=%s ; kopia restore %s/DatabaseBackup /home/%s/%s/DatabaseBackup", mode, name, name, id, user, name)).Output()
 		if err != nil {
+			log.Print(err)
+
 			return c.JSON(echo.ErrNotFound.Code, "Failed to Restore Backup from Backup System")
 		}
+		exec.Command("/bin/bash", "-c", fmt.Sprintf("touch /home/%s/%s/DatabaseBackup/metadata")).Output()
 		_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("myloader -d /home/%s/%s/DatabaseBackup -o", user, name)).Output()
 		if err != nil {
+			log.Print(err)
 			return c.JSON(echo.ErrNotFound.Code, "Failed to Restore Database")
 		}
 		exec.Command("/bin/bash", "-c", fmt.Sprintf("rm -rf /home/%s/%s/DatabaseBackup", user, name)).Output()
@@ -449,6 +457,8 @@ func restoreBackup(c echo.Context) error {
 	} else if restoreType == "webapp" {
 		_, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia repository connect filesystem --path=/var/Backup/%s/%s --password=%s ; kopia restore %s /home/%s/%s", mode, name, name, id, user, name)).Output()
 		if err != nil {
+			log.Print(err)
+
 			return c.JSON(echo.ErrNotFound.Code, "Failed to Restore Backup from Backup System")
 		}
 		exec.Command("/bin/bash", "-c", fmt.Sprintf("rm -rf /home/%s/%s/DatabaseBackup", user, name)).Output()
