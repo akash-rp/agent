@@ -142,8 +142,6 @@ type BackupTime struct {
 }
 
 type BackupRetention struct {
-	Hourly  string `json:"hourly"`
-	Daily   string `json:"daily"`
-	Weekly  string `json:"weekly"`
-	Monthly string `json:"monthly"`
+	Type string `json:"type"`
+	Time int    `json:"time"`
 }
