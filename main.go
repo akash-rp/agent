@@ -19,7 +19,7 @@ import (
 )
 
 var obj Config
-var cronInt = gocron.NewScheduler(time.Local)
+var cronInt = gocron.NewScheduler(time.UTC)
 var jobMap = make(map[string]*gocron.Job)
 
 func main() {
@@ -188,6 +188,9 @@ func wpAdd(c echo.Context) error {
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("echo \" %s/.htaccess IN_MODIFY /usr/sbin/service lsws restart\" >> /etc/incron.d/sites.txt", path)).Output()
 	exec.Command("/bin/bash", "-c", "incrontab /etc/incron.d/sites.txt").Output()
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("chown %s:%s %s/.htaccess", wp.UserName, wp.UserName, path)).Output()
+
+	//Add phpini file
+
 	// Install wordpress with data provided by request
 	_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %s -i -- /usr/Hosting/wp-cli core install --path=%s --url=%s --title=%s --admin_user=%s --admin_password=%s --admin_email=%s", wp.UserName, path, wp.Url, wp.Title, wp.AdminUser, wp.AdminPassword, wp.AdminEmail)).CombinedOutput()
 
@@ -321,12 +324,18 @@ func editDomain(c echo.Context) error {
 	// if err != nil {
 	// 	return echo.NewHTTPError(400, "JSON data error")
 	// }
-
-	obj.Sites = Domain.Sites
+	// obj.Sites = Doamin.Sites
+	for i, site := range obj.Sites {
+		if site.Name == Domain.Name {
+			obj.Sites[i].AliasDomain = Domain.Site.AliasDomain
+			obj.Sites[i].PrimaryDomain = Domain.Site.PrimaryDomain
+		}
+	}
 	siteArray := []string{}
 	path := ""
 	for _, site := range obj.Sites {
 		if site.Name == Domain.Name {
+
 			path = fmt.Sprintf("/usr/local/lsws/conf/vhosts/%s.d/main.conf", site.Name)
 			siteArray = append(siteArray, site.PrimaryDomain.Url)
 			if site.PrimaryDomain.WildCard {
@@ -361,8 +370,8 @@ func editDomain(c echo.Context) error {
 }
 
 func changePrimary(c echo.Context) error {
-	Domain := new(PrimaryChange)
-	c.Bind(&Domain)
+	ChangeDomain := new(PrimaryChange)
+	c.Bind(&ChangeDomain)
 	// data, err := ioutil.ReadFile("/usr/Hosting/config.json")
 	// if err != nil {
 	// 	return echo.NewHTTPError(404, "Config file not found")
@@ -375,11 +384,24 @@ func changePrimary(c echo.Context) error {
 	// 	return echo.NewHTTPError(400, "JSON data error")
 	// }
 
-	obj.Sites = Domain.Sites
+	for i, site := range obj.Sites {
+		if site.Name == ChangeDomain.Name {
+			prim := site.PrimaryDomain
+			var alias Domain
+			for ia, ali := range site.AliasDomain {
+				if ali.Url == ChangeDomain.MainUrl {
+					alias = ali
+					site.AliasDomain[ia] = prim
+				}
+			}
+			site.PrimaryDomain = alias
+		}
+		obj.Sites[i] = site
+	}
 	back, _ := json.MarshalIndent(obj, "", "  ")
 	ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
-	path := fmt.Sprintf("/home/%s/%s", Domain.User, Domain.Name)
-	exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %s -i -- /usr/Hosting/wp-cli search-replace '%s' '%s' --path='%s' --skip-columns=guid ", Domain.User, Domain.AliasUrl, Domain.MainUrl, path)).Output()
+	path := fmt.Sprintf("/home/%s/%s", ChangeDomain.User, ChangeDomain.Name)
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %s -i -- /usr/Hosting/wp-cli search-replace '%s' '%s' --path='%s' --skip-columns=guid ", ChangeDomain.User, ChangeDomain.AliasUrl, ChangeDomain.MainUrl, path)).Output()
 	return c.String(http.StatusOK, "success")
 
 }
@@ -398,7 +420,7 @@ func changePHP(c echo.Context) error {
 	// if err != nil {
 	// 	return echo.NewHTTPError(400, "JSON data error")
 	// }
-	obj.Sites = PHPDetails.Sites
+	// obj.Sites = PHPDetails.Sites
 	back, _ := json.MarshalIndent(obj, "", "  ")
 	ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i '/^#/!s|path /usr/local/lsws/%s/bin/lsphp|path /usr/local/lsws/%s/bin/lsphp|' /usr/local/lsws/conf/vhosts/%s.d/handlers/extphp.conf", PHPDetails.OldPHP, PHPDetails.NewPHP, PHPDetails.Name)).Output()

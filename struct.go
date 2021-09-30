@@ -12,17 +12,15 @@ type systemstats struct {
 }
 
 type wpadd struct {
-	AppName       string   `json:"appName"`
-	UserName      string   `json:"userName"`
-	Url           string   `json:"url"`
-	Title         string   `json:"title"`
-	AdminUser     string   `json:"adminUser"`
-	AdminPassword string   `json:"adminPassword"`
-	AdminEmail    string   `json:"adminEmail"`
-	SubDomain     bool     `json:"subdomain"`
-	Routing       string   `json:"routing"`
-	Sites         []Site   `json:"sites"`
-	Exclude       []string `json:"exclude"`
+	AppName       string `json:"appName"`
+	UserName      string `json:"userName"`
+	Url           string `json:"url"`
+	Title         string `json:"title"`
+	AdminUser     string `json:"adminUser"`
+	AdminPassword string `json:"adminPassword"`
+	AdminEmail    string `json:"adminEmail"`
+	SubDomain     bool   `json:"subdomain"`
+	Routing       string `json:"routing"`
 }
 
 type db struct {
@@ -50,21 +48,20 @@ type errcode struct {
 }
 
 type DomainEdit struct {
-	Name  string `json:"name"`
-	Sites []Site `json:"sites"`
+	Name string `json:"name"`
+	Site Site   `json:"site"`
 }
 
 type PrimaryChange struct {
 	Name     string `json:"name"`
-	Sites    []Site `json:"sites"`
 	MainUrl  string `json:"mainUrl"`
 	AliasUrl string `json:"aliasUrl"`
 	User     string `json:"user"`
 }
 
 type PHPChange struct {
-	Name   string `json:"name"`
-	Sites  []Site `json:"sites"`
+	Name string `json:"name"`
+	// Sites  []Site `json:"sites"`
 	OldPHP string `json:"oldphp"`
 	NewPHP string `json:"newphp"`
 }
@@ -132,6 +129,7 @@ type Backup struct {
 	Frequency string          `json:"frequency"`
 	Time      BackupTime      `json:"time"`
 	Retention BackupRetention `json:"retention"`
+	LastRun   string          `json:"lastrun"`
 }
 
 type BackupTime struct {

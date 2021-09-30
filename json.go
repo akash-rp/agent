@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -156,8 +157,7 @@ func addSiteToJSON(wp wpadd) error {
 	// if err != nil {
 	// 	return echo.NewHTTPError(400, "JSON data error")
 	// }
-	obj.Sites = wp.Sites
-	newSite := Site{Name: wp.AppName, Cache: "off", Exclude: wp.Exclude, User: wp.UserName}
+	newSite := Site{Name: wp.AppName, Cache: "off", User: wp.UserName}
 	newSite.AliasDomain = []Domain{}
 
 	newSite.PrimaryDomain = Domain{Url: wp.Url, SSL: false, SubDomain: wp.SubDomain, Routing: wp.Routing, WildCard: false}
@@ -260,3 +260,12 @@ func addCert(wp wpcert) error {
 }
 
 // define data structure
+
+func SaveJSONFile() error {
+	back, _ := json.MarshalIndent(obj, "", "  ")
+	err := ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
+	if err != nil {
+		return errors.New("cannot save JSON File")
+	}
+	return nil
+}
