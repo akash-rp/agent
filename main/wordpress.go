@@ -181,7 +181,7 @@ func wpAdd(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, result)
 	}
 	exec.Command("/bin/bash", "-c", "service hosting restart").Output()
-
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("mkdir -p /var/log/hosting/%s", wp.AppName)).Output()
 	return c.JSON(http.StatusOK, dbCred)
 
 }

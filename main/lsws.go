@@ -49,13 +49,13 @@ docRoot $VH_ROOT/
 VhDomain %s
 enableGzip 1
 
-errorlog /var/logs/Hosting/%s/lsws_error.log {
+errorlog /var/log/hosting/%s/lsws_error.log {
 useServer 0
 logLevel ERROR
 rollingSize 10M
 }
 
-accesslog var/logs/Hosting/%s/lsws_access.log {
+accesslog var/log/hosting/%s/lsws_access.log {
 useServer 0
 rollingSize 10M
 keepDays 10
@@ -81,7 +81,7 @@ expires  {
 rewrite {
 enable 1
 autoLoadHtaccess 1
-}`, wp.Url, wp.AppName, wp.AppName, wp.UserName, wp.AppName)
+}`, wp.Url, wp.AppName, wp.AppName, wp.AppName, wp.AppName)
 	if err := os.Chdir(fmt.Sprintf("/usr/local/lsws/conf/vhosts/%s.d", wp.AppName)); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Error 6")
 	}
