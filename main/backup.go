@@ -37,14 +37,41 @@ func updateLocalBackup(c echo.Context) error {
 	lastBackup := ""
 	c.Bind(&backup)
 	if backup.Automatic == true {
-		if backupType == "new" {
-			err := addNewBackup(name, user, *backup)
-			if err != nil {
-				return c.JSON(echo.ErrNotFound.Code, "Error adding new Backup")
+		switch backupType {
+		case "enable":
+			switch backup.Created {
+			case true:
+				latest := getLatest(*backup)
+				exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia repository connect filesystem --path='/var/Backup/auto/%s' --password=%s ; kopia policy set --keep-latest %d --keep-hourly 0 --keep-daily 0 --keep-weekly 0 --keep-monthly 0 --keep-annual 0 --global;", name, name, latest)).Output()
+				for i, site := range obj.Sites {
+					if site.Name == name {
+						lastBackup = site.LocalBackup.LastRun
+						err := addCronJob(*backup, name, user, lastBackup)
+						if err != nil {
+							return c.JSON(echo.ErrNotFound.Code, "Error adding cron job")
+						}
+						obj.Sites[i].LocalBackup = *backup
+						if lastBackup == "" {
+							obj.Sites[i].LocalBackup.LastRun = time.Now().UTC().Format(time.RFC3339)
+						} else {
+							obj.Sites[i].LocalBackup.LastRun = lastBackup
+						}
+					}
+				}
+				back, _ := json.MarshalIndent(obj, "", "  ")
+				ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
+				return c.JSON(http.StatusOK, "")
+			case false:
+				err := addNewBackup(name, user, *backup)
+				if err != nil {
+
+					return c.JSON(echo.ErrNotFound.Code, "Error adding new Backup")
+				}
+				return c.JSON(http.StatusOK, "")
 			}
-			return c.JSON(http.StatusOK, "")
-		} else if backupType == "existing" {
-			cronInt.RemoveByTag(fmt.Sprintf("%s", name))
+
+		case "existing":
+			cronInt.RemoveByTag(name)
 			latest := getLatest(*backup)
 			log.Print("After function: " + strconv.Itoa(latest))
 			exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia repository connect filesystem --path='/var/Backup/auto/%s' --password=%s ; kopia policy set --keep-latest %d --keep-hourly 0 --keep-daily 0 --keep-weekly 0 --keep-monthly 0 --keep-annual 0 --global;", name, name, latest)).Output()
@@ -69,13 +96,22 @@ func updateLocalBackup(c echo.Context) error {
 			back, _ := json.MarshalIndent(obj, "", "  ")
 			ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
 			return c.JSON(http.StatusOK, "")
-
 		}
+
 	} else {
-		return c.JSON(http.StatusOK, "Nothing to change")
+		if backupType == "disable" {
+			cronInt.RemoveByTag(name)
+			for i, site := range obj.Sites {
+				if site.Name == name {
+					obj.Sites[i].LocalBackup.Automatic = false
+				}
+			}
+			back, _ := json.MarshalIndent(obj, "", "  ")
+			ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
+			return c.JSON(http.StatusOK, "")
+		}
 	}
 	return c.JSON(echo.ErrNotFound.Code, "Invalid Request")
-
 }
 
 func addNewBackup(name string, user string, backup Backup) error {
@@ -106,6 +142,7 @@ func addNewBackup(name string, user string, backup Backup) error {
 				return err
 			}
 			obj.Sites[i].LocalBackup = backup
+			obj.Sites[i].LocalBackup.Created = true
 			back, _ := json.MarshalIndent(obj, "", "  ")
 			ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
 			found = true

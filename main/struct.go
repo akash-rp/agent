@@ -130,6 +130,7 @@ type Backup struct {
 	Time      BackupTime      `json:"time"`
 	Retention BackupRetention `json:"retention"`
 	LastRun   string          `json:"lastrun"`
+	Created   bool            `json:"created"`
 }
 
 type BackupTime struct {
