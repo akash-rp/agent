@@ -410,10 +410,18 @@ func getLatest(backup Backup) int {
 	return latest
 }
 
-func takeLocalBackup(c echo.Context) error {
+func ondemadBackup(c echo.Context) error {
 	name := c.Param("name")
 	backupType := c.Param("type")
 	user := c.Param("user")
+	err := takeLocalBackup(name, backupType, user, false)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, err)
+	}
+	return c.JSON(http.StatusOK, "Success")
+}
+
+func takeLocalBackup(name string, backupType string, user string, staging bool) error {
 	cronBusy = true
 	f, err := os.OpenFile(fmt.Sprintf("/var/log/hosting/%s/backup.log", name), os.O_APPEND|os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
@@ -421,6 +429,9 @@ func takeLocalBackup(c echo.Context) error {
 	}
 	f.Write([]byte("\n--------------------------------------------------------------------------------------\n"))
 	f.Write([]byte("ONDEMAND Backup Process started\n"))
+	if staging {
+		f.Write([]byte("Process started for crceating staging site\n"))
+	}
 	f.Write([]byte("Time:" + time.Now().String() + "\n"))
 	db, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/wp-config.php | grep DB_NAME | cut -d \\' -f 4", user, name)).Output()
 	dbname := strings.TrimSuffix(string(db), "\n")
@@ -430,7 +441,7 @@ func takeLocalBackup(c echo.Context) error {
 		f.Write([]byte("Backup Failed"))
 		f.Close()
 		cronBusy = false
-		return c.JSON(http.StatusBadRequest, "Invalid wp-config file")
+		return errors.New("Invalid wp-config file")
 	}
 	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("mydumper -B %s -o /home/%s/%s/DatabaseBackup/", dbnameArray[0], user, name)).CombinedOutput()
 	if err != nil {
@@ -439,8 +450,7 @@ func takeLocalBackup(c echo.Context) error {
 		f.Write([]byte("Backup Process Failed"))
 		f.Close()
 		cronBusy = false
-		return c.JSON(http.StatusBadRequest, "Database Dump error")
-
+		return errors.New("Database Dump error")
 	}
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("rm /home/%s/%s/DatabaseBackup/metadata", user, name)).Output()
 	if backupType == "new" {
@@ -455,7 +465,7 @@ func takeLocalBackup(c echo.Context) error {
 		f.Write([]byte("Backup Process Failed"))
 		f.Close()
 		cronBusy = false
-		return c.JSON(http.StatusBadRequest, "Cannot create backup")
+		return errors.New("Cannot create backup")
 
 	}
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("rm -rf /home/%s/%s/DatabaseBackup/", user, name)).Output()
@@ -464,14 +474,14 @@ func takeLocalBackup(c echo.Context) error {
 		f.Write([]byte("Backup Process Completed\n"))
 		f.Close()
 		cronBusy = false
-		return c.JSON(http.StatusOK, "")
+		return nil
 	} else {
 
 		f.Write([]byte("Backup Process Failed"))
 		f.Write([]byte(err.Error()))
 		f.Close()
 		cronBusy = false
-		return c.JSON(echo.ErrBadRequest.Code, "Cannot create Backup")
+		return errors.New("Cannot create Backup")
 	}
 
 }

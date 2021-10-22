@@ -19,7 +19,6 @@ type wpadd struct {
 	AdminUser     string `json:"adminUser"`
 	AdminPassword string `json:"adminPassword"`
 	AdminEmail    string `json:"adminEmail"`
-	SubDomain     bool   `json:"subdomain"`
 	Routing       string `json:"routing"`
 }
 
@@ -117,11 +116,10 @@ type Config struct {
 }
 
 type Domain struct {
-	Url       string `json:"url"`
-	SubDomain bool   `json:"subDomain"`
-	SSL       bool   `json:"ssl"`
-	WildCard  bool   `json:"wildcard"`
-	Routing   string `json:"routing"`
+	Url      string `json:"url"`
+	SSL      bool   `json:"ssl"`
+	WildCard bool   `json:"wildcard"`
+	Routing  string `json:"routing"`
 }
 
 type Backup struct {
@@ -143,4 +141,11 @@ type BackupTime struct {
 type BackupRetention struct {
 	Type string `json:"type"`
 	Time int    `json:"time"`
+}
+
+type Staging struct {
+	Name string `json:"name"`
+	User string `json:"user"`
+	Type string `json:"type"`
+	Url  string `json:"url"`
 }

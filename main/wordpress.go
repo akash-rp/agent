@@ -233,10 +233,6 @@ func createDatabase(d db) error {
 		return echo.NewHTTPError(http.StatusBadRequest, err)
 	}
 	exec.Command("/bin/bash", "-c", "mysql -e 'FLUSH PRIVILEGES;'").Output()
-	if err != nil {
-		write, _ := json.MarshalIndent(d, "", "  ")
-		ioutil.WriteFile("/usr/Hosting/error.log", write, 0777)
-		return echo.NewHTTPError(http.StatusBadRequest, "FLush")
-	}
+
 	return nil
 }

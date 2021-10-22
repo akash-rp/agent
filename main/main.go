@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+
 	"github.com/go-co-op/gocron"
 	"github.com/labstack/echo/v4"
 )
@@ -37,10 +38,11 @@ func main() {
 	e.GET("/getPHPini/:name", getPHPini)
 	e.POST("/updatePHPini/:name", updatePHPini)
 	e.POST("/localbackup/:type/:name/:user", updateLocalBackup)
-	e.GET("/takelocalbackup/:type/:name/:user", takeLocalBackup)
+	e.GET("/takelocalbackup/:type/:name/:user", ondemadBackup)
 	e.GET("/localbackup/nextrun", nextrun)
 	e.GET("/localbackup/list/:name/:user/:mode", getLocalBackupsList)
 	e.GET("/restorelocalbackup/:name/:user/:mode/:id/:type", restoreBackup)
+	// e.POST("/createstaging", createStaging)
 	e.Logger.Fatal(e.Start(":8081"))
 }
 
@@ -49,8 +51,8 @@ func serverStats(c echo.Context) error {
 	usedmem, _ := exec.Command("/bin/bash", "-c", "free -m | awk 'NR==2{printf $3}'").Output()
 	cores, _ := exec.Command("/bin/bash", "-c", "nproc").Output()
 	cpuname, _ := exec.Command("/bin/bash", "-c", "lscpu | grep 'Model name' | cut -f 2 -d : | awk '{$1=$1}1'").Output()
-	totaldisk, _ := exec.Command("/bin/bash", "-c", " df -h --total -x tmpfs | awk '/total/{printf $2}'").Output()
-	useddisk, _ := exec.Command("/bin/bash", "-c", " df -h --total -x tmpfs| awk '/total/{printf $3}'").Output()
+	totaldisk, _ := exec.Command("/bin/bash", "-c", " df -h --total -x tmpfs -x devtmpfs -x udev | awk '/total/{printf $2}'").Output()
+	useddisk, _ := exec.Command("/bin/bash", "-c", " df -h --total -x tmpfs -x devtmpfs -x udev| awk '/total/{printf $3}'").Output()
 	bandwidth, _ := exec.Command("/bin/bash", "-c", "vnstat | awk 'NR==4{print $5$6}'").Output()
 	os, err := exec.Command("/bin/bash", "-c", "hostnamectl | grep 'Operating System' | cut -f 2 -d : | awk '{$1=$1}1'").Output()
 	if err != nil {
