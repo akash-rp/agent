@@ -36,7 +36,7 @@ func updateLocalBackup(c echo.Context) error {
 	backup := new(Backup)
 	lastBackup := ""
 	c.Bind(&backup)
-	if backup.Automatic == true {
+	if backup.Automatic {
 		switch backupType {
 		case "enable":
 			switch backup.Created {
@@ -441,7 +441,7 @@ func takeLocalOndemandBackup(name string, backupType string, user string, stagin
 		f.Write([]byte("Backup Failed"))
 		f.Close()
 		cronBusy = false
-		return errors.New("Invalid wp-config file")
+		return errors.New("invalid wp-config file")
 	}
 	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("mydumper -B %s -o /home/%s/%s/DatabaseBackup/", dbnameArray[0], user, name)).CombinedOutput()
 	if err != nil {
@@ -450,7 +450,7 @@ func takeLocalOndemandBackup(name string, backupType string, user string, stagin
 		f.Write([]byte("Backup Process Failed"))
 		f.Close()
 		cronBusy = false
-		return errors.New("Database Dump error")
+		return errors.New("database Dump error")
 	}
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("rm /home/%s/%s/DatabaseBackup/metadata", user, name)).Output()
 	if backupType == "new" {
@@ -465,7 +465,7 @@ func takeLocalOndemandBackup(name string, backupType string, user string, stagin
 		f.Write([]byte("Backup Process Failed"))
 		f.Close()
 		cronBusy = false
-		return errors.New("Cannot create backup")
+		return errors.New("cannot create backup")
 
 	}
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("rm -rf /home/%s/%s/DatabaseBackup/", user, name)).Output()
@@ -481,7 +481,7 @@ func takeLocalOndemandBackup(name string, backupType string, user string, stagin
 		f.Write([]byte(err.Error()))
 		f.Close()
 		cronBusy = false
-		return errors.New("Cannot create Backup")
+		return errors.New("cannot create Backup")
 	}
 
 }

@@ -128,7 +128,7 @@ func wpAdd(c echo.Context) error {
 
 	//Add phpini file
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("mkdir -p /usr/local/lsws/php-ini/%s", wp.AppName))
-	phpfile, err := os.OpenFile(fmt.Sprintf("/usr/local/lsws/php-ini/%s/php.ini", wp.AppName), os.O_APPEND|os.O_RDWR|os.O_CREATE, 0644)
+	phpfile, _ := os.OpenFile(fmt.Sprintf("/usr/local/lsws/php-ini/%s/php.ini", wp.AppName), os.O_APPEND|os.O_RDWR|os.O_CREATE, 0644)
 	phpfile.Write([]byte(`
 	[PHP]
 	max_execution_time=200
@@ -162,7 +162,7 @@ func wpAdd(c echo.Context) error {
 		}
 		return c.JSON(http.StatusBadRequest, result)
 	}
-	exec.Command("/bin/bash", "-c", fmt.Sprint("mkdir -p /var/logs/Hosting/%s", wp.AppName))
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("mkdir -p /var/logs/Hosting/%s", wp.AppName))
 
 	err = addSiteToJSON(*wp, "live")
 	if err != nil {

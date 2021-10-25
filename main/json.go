@@ -62,7 +62,7 @@ func deleteSiteFromJSON(wp wpdelete) error {
 	}
 
 	for _, site := range obj.Sites {
-		if site.PrimaryDomain.SSL == true {
+		if site.PrimaryDomain.SSL {
 			obj.SSL = true
 			break
 		}
