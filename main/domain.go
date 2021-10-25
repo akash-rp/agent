@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -101,8 +102,12 @@ func changePrimary(c echo.Context) error {
 	}
 	back, _ := json.MarshalIndent(obj, "", "  ")
 	ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
-	path := fmt.Sprintf("/home/%s/%s", ChangeDomain.User, ChangeDomain.Name)
-	exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %s -i -- /usr/Hosting/wp-cli search-replace '%s' '%s' --path='%s' --skip-columns=guid ", ChangeDomain.User, ChangeDomain.AliasUrl, ChangeDomain.MainUrl, path)).Output()
+	db, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/wp-config.php | grep DB_NAME | cut -d \\' -f 4", ChangeDomain.User, ChangeDomain.Name)).Output()
+	dbname := strings.TrimSuffix(string(db), "\n")
+	dbnameArray := strings.Split(dbname, "\n")
+	if len(dbnameArray) > 1 {
+		return errors.New("Invalid wp-config file")
+	}
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("php srdb.cli.php -h localhost -n %s -u root -p '' -s http://%s -r http://%s -x guid -x user_email", dbnameArray[0], ChangeDomain.User, ChangeDomain.AliasUrl, ChangeDomain.MainUrl)).Output()
 	return c.String(http.StatusOK, "success")
-
 }

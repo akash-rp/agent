@@ -104,7 +104,6 @@ type Site struct {
 	PrimaryDomain Domain   `json:"primaryDomain"`
 	AliasDomain   []Domain `json:"aliasDomain"`
 	Cache         string   `json:"cache"`
-	Exclude       []string `json:"exclude"`
 	LocalBackup   Backup   `json:"localBackup"`
 }
 
@@ -119,7 +118,6 @@ type Domain struct {
 	Url      string `json:"url"`
 	SSL      bool   `json:"ssl"`
 	WildCard bool   `json:"wildcard"`
-	Routing  string `json:"routing"`
 }
 
 type Backup struct {
