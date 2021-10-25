@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os/exec"
 	"strings"
@@ -108,6 +109,10 @@ func changePrimary(c echo.Context) error {
 	if len(dbnameArray) > 1 {
 		return errors.New("Invalid wp-config file")
 	}
-	exec.Command("/bin/bash", "-c", fmt.Sprintf("php srdb.cli.php -h localhost -n %s -u root -p '' -s http://%s -r http://%s -x guid -x user_email", dbnameArray[0], ChangeDomain.User, ChangeDomain.AliasUrl, ChangeDomain.MainUrl)).Output()
+	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("php srdb.cli.php -h localhost -n %s -u root -p '' -s http://%s -r http://%s -x guid -x user_email", dbnameArray[0], ChangeDomain.User, ChangeDomain.AliasUrl, ChangeDomain.MainUrl)).CombinedOutput()
+	if err != nil {
+		log.Print(out)
+		log.Print(err)
+	}
 	return c.String(http.StatusOK, "success")
 }
