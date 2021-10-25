@@ -15,7 +15,8 @@ import (
 
 var obj Config
 var cronInt = gocron.NewScheduler(time.UTC)
-var jobMap = make(map[string]*gocron.Job)
+
+// var jobMap = make(map[string]*gocron.Job)
 
 func main() {
 	e := echo.New()
@@ -37,12 +38,12 @@ func main() {
 	e.POST("/changePHP", changePHP)
 	e.GET("/getPHPini/:name", getPHPini)
 	e.POST("/updatePHPini/:name", updatePHPini)
-	e.POST("/localbackup/:type/:name/:user", updateLocalBackup)
-	e.GET("/takelocalbackup/:type/:name/:user", ondemadBackup)
+	e.POST("/updatelocalbackup/:type/:name/:user", updateLocalBackup)
+	e.GET("/localondemandbackup/:type/:name/:user", ondemadBackup)
 	e.GET("/localbackup/nextrun", nextrun)
 	e.GET("/localbackup/list/:name/:user/:mode", getLocalBackupsList)
 	e.GET("/restorelocalbackup/:name/:user/:mode/:id/:type", restoreBackup)
-	// e.POST("/createstaging", createStaging)
+	e.POST("/createstaging", createStaging)
 	e.Logger.Fatal(e.Start(":8081"))
 }
 

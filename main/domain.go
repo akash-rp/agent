@@ -109,10 +109,11 @@ func changePrimary(c echo.Context) error {
 	if len(dbnameArray) > 1 {
 		return errors.New("Invalid wp-config file")
 	}
-	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("php srdb.cli.php -h localhost -n %s -u root -p '' -s http://%s -r http://%s -x guid -x user_email", dbnameArray[0], ChangeDomain.User, ChangeDomain.AliasUrl, ChangeDomain.MainUrl)).CombinedOutput()
+	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("php /usr/Hosting/script/srdb.cli.php -h localhost -n %s -u root -p '' -s http://%s -r http://%s -x guid -x user_email", dbnameArray[0], ChangeDomain.AliasUrl, ChangeDomain.MainUrl)).CombinedOutput()
 	if err != nil {
-		log.Print(out)
+		log.Print(string(out))
 		log.Print(err)
+		return errors.New("Search and replace operation failed")
 	}
 	return c.String(http.StatusOK, "success")
 }

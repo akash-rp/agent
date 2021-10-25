@@ -105,6 +105,7 @@ type Site struct {
 	AliasDomain   []Domain `json:"aliasDomain"`
 	Cache         string   `json:"cache"`
 	LocalBackup   Backup   `json:"localBackup"`
+	Type          string   `json:"type"`
 }
 
 type Config struct {
@@ -142,8 +143,9 @@ type BackupRetention struct {
 }
 
 type Staging struct {
-	Name string `json:"name"`
-	User string `json:"user"`
-	Type string `json:"type"`
-	Url  string `json:"url"`
+	Name    string `json:"name"`
+	User    string `json:"user"`
+	Type    string `json:"type"`
+	Url     string `json:"url"`
+	LiveUrl string `json:"liveurl"`
 }

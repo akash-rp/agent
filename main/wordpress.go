@@ -163,7 +163,8 @@ func wpAdd(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, result)
 	}
 	exec.Command("/bin/bash", "-c", fmt.Sprint("mkdir -p /var/logs/Hosting/%s", wp.AppName))
-	err = addSiteToJSON(*wp)
+
+	err = addSiteToJSON(*wp, "live")
 	if err != nil {
 		result := &errcode{
 			Code:    109,
