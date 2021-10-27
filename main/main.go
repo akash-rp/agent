@@ -39,11 +39,11 @@ func main() {
 	e.GET("/getPHPini/:name", getPHPini)
 	e.POST("/updatePHPini/:name", updatePHPini)
 	e.POST("/updatelocalbackup/:type/:name/:user", updateLocalBackup)
-	e.GET("/localondemandbackup/:type/:name/:user", ondemadBackup)
+	e.GET("/takelocalondemandbackup/:type/:name/:user", ondemadBackup)
 	e.GET("/localbackup/nextrun", nextrun)
 	e.GET("/localbackup/list/:name/:user/:mode", getLocalBackupsList)
 	e.GET("/restorelocalbackup/:name/:user/:mode/:id/:type", restoreBackup)
-	e.POST("/createstaging", createStaging)
+	e.GET("/createstaging/:name/:user/:mode/:url/:livesiteurl", createStaging)
 	e.Logger.Fatal(e.Start(":8081"))
 }
 

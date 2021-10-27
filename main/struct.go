@@ -147,5 +147,5 @@ type Staging struct {
 	User    string `json:"user"`
 	Type    string `json:"type"`
 	Url     string `json:"url"`
-	LiveUrl string `json:"liveurl"`
+	LivesiteUrl string `json:"livesiteurl"`
 }
