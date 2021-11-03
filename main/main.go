@@ -44,6 +44,7 @@ func main() {
 	e.GET("/localbackup/list/:name/:user/:mode", getLocalBackupsList)
 	e.GET("/restorelocalbackup/:name/:user/:mode/:id/:type", restoreBackup)
 	e.GET("/createstaging/:name/:user/:mode/:url/:livesiteurl", createStaging)
+	e.GET("/getdbtables/:name/:user", getDatabaseTables)
 	e.Logger.Fatal(e.Start(":8081"))
 }
 

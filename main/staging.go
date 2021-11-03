@@ -1,8 +1,10 @@
 package main
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -142,7 +144,63 @@ func createStaging(c echo.Context) error {
 		logFile.Close()
 		return c.JSON(echo.ErrBadRequest.Code, "Failed to add site to proxy")
 	}
+	configNuster()
 	go exec.Command("/bin/bash", "-c", "service lsws restart")
 	go exec.Command("/bin/bash", "-c", "service hosting restart")
 	return c.JSON(200, "Success")
+}
+
+func getDatabaseTables(c echo.Context) error {
+	Name := c.Param("name")
+	User := c.Param("user")
+	var tabels []string
+	db, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/wp-config.php | grep DB_NAME | cut -d \\' -f 4", User, Name)).Output()
+	dbname := strings.TrimSuffix(string(db), "\n")
+	dbnameArray := strings.Split(dbname, "\n")
+	if len(dbnameArray) > 1 || len(dbnameArray) == 0 {
+		return errors.New("invalid wp-config file")
+	}
+	db, _ = exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/wp-config.php | grep DB_USER | cut -d \\' -f 4", User, Name)).Output()
+	dbuser := strings.TrimSuffix(string(db), "\n")
+	dbuserArray := strings.Split(dbuser, "\n")
+	if len(dbuserArray) > 1 || len(dbuserArray) == 0 {
+
+		return errors.New("invalid wp-config file")
+	}
+	db, _ = exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/wp-config.php | grep DB_PASSWORD | cut -d \\' -f 4", User, Name)).Output()
+	dbpassword := strings.TrimSuffix(string(db), "\n")
+	dbpasswordArray := strings.Split(dbpassword, "\n")
+	if len(dbpasswordArray) > 1 || len(dbpasswordArray) == 0 {
+
+		return errors.New("invalid wp-config file")
+	}
+	mysql, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(127.0.0.1:3306)/%s"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer mysql.Close()
+	err = mysql.Ping()
+	if err != nil {
+		log.Fatal(err)
+	}
+	rows, err := mysql.Query("show tables")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var name string
+		err := rows.Scan(&name)
+		if err != nil {
+			log.Fatal(err)
+		}
+		tabels = append(tabels, name)
+		// log.Println(name)
+	}
+	err = rows.Err()
+	if err != nil {
+		log.Fatal(err)
+	}
+	// j, _ := json.Marshal(tabels)
+	return c.JSON(http.StatusOK, tabels)
 }

@@ -86,14 +86,15 @@ frontend nonssl
 	use_backend %[req.hdr(host),map_sub(/opt/Hosting/wildcardroutes.map)] if { req.hdr(host),map_sub(/opt/Hosting/wildcardroutes.map) -m found }`
 	}
 	for i, backend := range obj.Sites {
-
-		conf = conf + fmt.Sprintf(`
+		if backend.Type == "live" {
+			conf = conf + fmt.Sprintf(`
 backend %s
     nuster cache %s
     nuster rule r%d
     http-response set-header x-cache HIT if { nuster.cache.hit }
     http-response set-header x-cache MISS unless { nuster.cache.hit }
     server s1 0.0.0.0:8088`, backend.Name, backend.Cache, i)
+		}
 	}
 	conf = conf + `
 backend nocache
