@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/labstack/echo/v4"
 	"github.com/sethvargo/go-password/password"
 )
@@ -153,7 +154,7 @@ func createStaging(c echo.Context) error {
 func getDatabaseTables(c echo.Context) error {
 	Name := c.Param("name")
 	User := c.Param("user")
-	var tabels []string
+	var tables []string
 	db, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/wp-config.php | grep DB_NAME | cut -d \\' -f 4", User, Name)).Output()
 	dbname := strings.TrimSuffix(string(db), "\n")
 	dbnameArray := strings.Split(dbname, "\n")
@@ -194,13 +195,13 @@ func getDatabaseTables(c echo.Context) error {
 		if err != nil {
 			log.Fatal(err)
 		}
-		tabels = append(tabels, name)
+		tables = append(tables, name)
 		// log.Println(name)
 	}
 	err = rows.Err()
 	if err != nil {
 		log.Fatal(err)
 	}
-	// j, _ := json.Marshal(tabels)
-	return c.JSON(http.StatusOK, tabels)
+	// j, _ := json.Marshal(tables)
+	return c.JSON(http.StatusOK, tables)
 }
