@@ -39,42 +39,32 @@ func updateLocalBackup(c echo.Context) error {
 	if backup.Automatic {
 		switch backupType {
 		case "enable":
-			switch backup.Created {
-			case true:
-				latest := getLatest(*backup)
-				exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia repository connect filesystem --path='/var/Backup/auto/%s' --password=%s ; kopia policy set --keep-latest %d --keep-hourly 0 --keep-daily 0 --keep-weekly 0 --keep-monthly 0 --keep-annual 0 --global;", name, name, latest)).Output()
-				for i, site := range obj.Sites {
-					if site.Name == name {
-						lastBackup = site.LocalBackup.LastRun
-						err := addCronJob(*backup, name, user, lastBackup)
-						if err != nil {
-							return c.JSON(echo.ErrNotFound.Code, "Error adding cron job")
-						}
-						obj.Sites[i].LocalBackup = *backup
-						if lastBackup == "" {
-							obj.Sites[i].LocalBackup.LastRun = time.Now().UTC().Format(time.RFC3339)
-						} else {
-							obj.Sites[i].LocalBackup.LastRun = lastBackup
-						}
+			latest := getLatest(*backup)
+			exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia repository connect filesystem --path='/var/Backup/automatic' --password=kopia ; kopia policy set /home/%s/%s --keep-latest %d --keep-hourly 0 --keep-daily 0 --keep-weekly 0 --keep-monthly 0 --keep-annual 0;", user, name, latest)).Output()
+			for i, site := range obj.Sites {
+				if site.Name == name {
+					lastBackup = site.LocalBackup.LastRun
+					err := addCronJob(*backup, name, user, lastBackup)
+					if err != nil {
+						return c.JSON(echo.ErrNotFound.Code, "Error adding cron job")
+					}
+					obj.Sites[i].LocalBackup = *backup
+					if lastBackup == "" {
+						obj.Sites[i].LocalBackup.LastRun = time.Now().UTC().Format(time.RFC3339)
+					} else {
+						obj.Sites[i].LocalBackup.LastRun = lastBackup
 					}
 				}
-				back, _ := json.MarshalIndent(obj, "", "  ")
-				ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
-				return c.JSON(http.StatusOK, "")
-			case false:
-				err := addNewBackup(name, user, *backup)
-				if err != nil {
-
-					return c.JSON(echo.ErrNotFound.Code, "Error adding new Backup")
-				}
-				return c.JSON(http.StatusOK, "")
 			}
+			back, _ := json.MarshalIndent(obj, "", "  ")
+			ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
+			return c.JSON(http.StatusOK, "")
 
 		case "existing":
 			cronInt.RemoveByTag(name)
 			latest := getLatest(*backup)
 			log.Print("After function: " + strconv.Itoa(latest))
-			exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia repository connect filesystem --path='/var/Backup/auto/%s' --password=%s ; kopia policy set --keep-latest %d --keep-hourly 0 --keep-daily 0 --keep-weekly 0 --keep-monthly 0 --keep-annual 0 --global;", name, name, latest)).Output()
+			exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia repository connect filesystem --path='/var/Backup/automatic' --password=kopia ; kopia policy set /home/%s/%s --keep-latest %d --keep-hourly 0 --keep-daily 0 --keep-weekly 0 --keep-monthly 0 --keep-annual 0 --global;", user, name, latest)).Output()
 
 			for i, site := range obj.Sites {
 				if site.Name == name {
@@ -114,51 +104,51 @@ func updateLocalBackup(c echo.Context) error {
 	return c.JSON(echo.ErrNotFound.Code, "Invalid Request")
 }
 
-func addNewBackup(name string, user string, backup Backup) error {
-	found := false
-	latest := getLatest(backup)
-	log.Print("Before Site enter")
-	log.Print("Name: " + name)
-	log.Print("user: " + user)
-	for i, site := range obj.Sites {
-		log.Print("Enterend Sites Range")
-		if site.Name == name {
-			if latest == 0 {
-				log.Print("Latest is 0")
-				return errors.New("error in retention policy")
-			}
-			output, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia repository create filesystem --path='/var/Backup/auto/%s' --password=%s", name, name)).CombinedOutput()
-			log.Print(string(output))
-			if err != nil {
-				log.Print(string(output))
-				log.Print("Error in Kopia create")
-				return err
-			}
-			output, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia policy set --keep-latest %d --keep-hourly 0 --keep-daily 0 --keep-weekly 0 --keep-monthly 0 --keep-annual 0 --global", latest)).CombinedOutput()
-			log.Print(string(output))
-			if err != nil {
-				log.Print(string(output))
-				log.Print("Error in Kopia policy")
-				return err
-			}
-			obj.Sites[i].LocalBackup = backup
-			obj.Sites[i].LocalBackup.Created = true
-			back, _ := json.MarshalIndent(obj, "", "  ")
-			ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
-			found = true
-			err = addCronJob(backup, name, user, "")
-			if err != nil {
-				log.Print(err)
-				return err
-			}
-		}
-	}
-	if found {
-		return nil
-	} else {
-		return errors.New("site not found")
-	}
-}
+// func addNewBackup(name string, user string, backup Backup) error {
+// 	found := false
+// 	latest := getLatest(backup)
+// 	log.Print("Before Site enter")
+// 	log.Print("Name: " + name)
+// 	log.Print("user: " + user)
+// 	for i, site := range obj.Sites {
+// 		log.Print("Enterend Sites Range")
+// 		if site.Name == name {
+// 			if latest == 0 {
+// 				log.Print("Latest is 0")
+// 				return errors.New("error in retention policy")
+// 			}
+// 			output, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia repository create filesystem --path='/var/Backup/auto/%s' --password=%s", name, name)).CombinedOutput()
+// 			log.Print(string(output))
+// 			if err != nil {
+// 				log.Print(string(output))
+// 				log.Print("Error in Kopia create")
+// 				return err
+// 			}
+// 			output, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia policy set --keep-latest %d --keep-hourly 0 --keep-daily 0 --keep-weekly 0 --keep-monthly 0 --keep-annual 0 --global", latest)).CombinedOutput()
+// 			log.Print(string(output))
+// 			if err != nil {
+// 				log.Print(string(output))
+// 				log.Print("Error in Kopia policy")
+// 				return err
+// 			}
+// 			obj.Sites[i].LocalBackup = backup
+// 			obj.Sites[i].LocalBackup.Created = true
+// 			back, _ := json.MarshalIndent(obj, "", "  ")
+// 			ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
+// 			found = true
+// 			err = addCronJob(backup, name, user, "")
+// 			if err != nil {
+// 				log.Print(err)
+// 				return err
+// 			}
+// 		}
+// 	}
+// 	if found {
+// 		return nil
+// 	} else {
+// 		return errors.New("site not found")
+// 	}
+// }
 
 func takeBackup(name string, user string, msg string) {
 	cronBusy = true
@@ -205,7 +195,7 @@ func takeBackup(name string, user string, msg string) {
 		return
 	}
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("rm /home/%s/%s/DatabaseBackup/metadata", user, name)).Output()
-	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia repository connect filesystem --path=/var/Backup/auto/%s --password=%s ; kopia snapshot create /home/%s/%s", name, name, user, name)).CombinedOutput()
+	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia repository connect filesystem --path=/var/Backup/automatic --password=kopia ; kopia snapshot create /home/%s/%s", user, name)).CombinedOutput()
 	if err != nil {
 		f.Write([]byte("Cannot create backup"))
 		f.Write([]byte(string(out)))
@@ -453,12 +443,9 @@ func takeLocalOndemandBackup(name string, backupType string, user string, stagin
 		return errors.New("database Dump error")
 	}
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("rm /home/%s/%s/DatabaseBackup/metadata", user, name)).Output()
-	if backupType == "new" {
-		out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia repository create filesystem --path=/var/Backup/ondemand/%s --password=%s ; kopia policy set --keep-latest 10 --keep-hourly 0 --keep-daily 0 --keep-weekly 0 --keep-monthly 0 --keep-annual 0 --global; kopia snapshot create /home/%s/%s", name, name, user, name)).CombinedOutput()
-	}
-	if backupType == "existing" {
-		out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia repository connect filesystem --path=/var/Backup/ondemand/%s --password=%s ; kopia snapshot create /home/%s/%s", name, name, user, name)).CombinedOutput()
-	}
+
+	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia repository connect filesystem --path=/var/Backup/ondemand --password=kopia ; kopia snapshot create /home/%s/%s", user, name)).CombinedOutput()
+
 	if err != nil {
 		f.Write([]byte("Cannot create backup"))
 		f.Write([]byte(string(out)))
@@ -495,7 +482,7 @@ func getLocalBackupsList(c echo.Context) error {
 		time.Sleep(time.Millisecond * 100)
 	}
 
-	_, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia repository connect filesystem --path=/var/Backup/%s/%s --password=%s", backuptype, name, name)).Output()
+	_, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia repository connect filesystem --path=/var/Backup/%s --password=kopia", backuptype)).Output()
 	if err != nil {
 		return c.JSON(echo.ErrNotFound.Code, "Cannot connect to filesystem")
 	}
@@ -517,7 +504,7 @@ func restoreBackup(c echo.Context) error {
 		time.Sleep(time.Millisecond * 100)
 	}
 	if restoreType == "both" {
-		out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia repository connect filesystem --path=/var/Backup/%s/%s --password=%s ; kopia restore %s /home/%s/%s", mode, name, name, id, user, name)).CombinedOutput()
+		out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia repository connect filesystem --path=/var/Backup/%s --password=kopia ; kopia restore %s /home/%s/%s", mode, id, user, name)).CombinedOutput()
 		if err != nil {
 			log.Print(out)
 
@@ -533,7 +520,7 @@ func restoreBackup(c echo.Context) error {
 		exec.Command("/bin/bash", "-c", fmt.Sprintf("rm -rf /home/%s/%s/DatabaseBackup", user, name)).Output()
 		return c.JSON(http.StatusOK, "Success")
 	} else if restoreType == "db" {
-		out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia repository connect filesystem --path=/var/Backup/%s/%s --password=%s ; kopia restore %s/DatabaseBackup /home/%s/%s/DatabaseBackup", mode, name, name, id, user, name)).CombinedOutput()
+		out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia repository connect filesystem --path=/var/Backup/%s --password=kopia ; kopia restore %s/DatabaseBackup /home/%s/%s/DatabaseBackup", mode, id, user, name)).CombinedOutput()
 		if err != nil {
 			log.Print(out)
 
@@ -548,7 +535,7 @@ func restoreBackup(c echo.Context) error {
 		exec.Command("/bin/bash", "-c", fmt.Sprintf("rm -rf /home/%s/%s/DatabaseBackup", user, name)).Output()
 		return c.JSON(http.StatusOK, "Success")
 	} else if restoreType == "webapp" {
-		out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia repository connect filesystem --path=/var/Backup/%s/%s --password=%s ; kopia restore %s /home/%s/%s", mode, name, name, id, user, name)).CombinedOutput()
+		out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia repository connect filesystem --path=/var/Backup/%s --password=kopia ; kopia restore %s /home/%s/%s", mode, id, user, name)).CombinedOutput()
 		if err != nil {
 			log.Print(out)
 

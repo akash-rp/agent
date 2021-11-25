@@ -143,9 +143,25 @@ type BackupRetention struct {
 }
 
 type Staging struct {
-	Name    string `json:"name"`
-	User    string `json:"user"`
-	Type    string `json:"type"`
-	Url     string `json:"url"`
+	Name        string `json:"name"`
+	User        string `json:"user"`
+	Type        string `json:"type"`
+	Url         string `json:"url"`
 	LivesiteUrl string `json:"livesiteurl"`
+}
+
+type SyncChanges struct {
+	Method string `json:"method"`
+	Type   string `json:"type"`
+	From   struct {
+		Name string `json:"name"`
+		User string `json:"user"`
+	} `json:"fromSite"`
+	To struct {
+		Name string `json:"name"`
+		User string `json:"user"`
+	} `json:"toSite"`
+	DbType      string   `json:"dbType"`
+	AllSelected bool     `json:"allSelected"`
+	Tables      []string `json:"tables"`
 }

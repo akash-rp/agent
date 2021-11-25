@@ -175,7 +175,7 @@ func getDatabaseTables(c echo.Context) error {
 
 		return errors.New("invalid wp-config file")
 	}
-	mysql, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(127.0.0.1:3306)/%s"))
+	mysql, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(127.0.0.1:3306)/%s", dbuserArray[0], dbpasswordArray[0], dbnameArray[0]))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -204,4 +204,13 @@ func getDatabaseTables(c echo.Context) error {
 	}
 	// j, _ := json.Marshal(tables)
 	return c.JSON(http.StatusOK, tables)
+}
+
+func syncChanges(c echo.Context) error {
+	var sync SyncChanges
+	if err := c.Bind(&sync); err != nil {
+		return c.NoContent(http.StatusBadRequest)
+	}
+	//First take backup of toSite
+	return nil
 }
