@@ -19,7 +19,6 @@ import (
 func createStaging(c echo.Context) error {
 	Name := c.Param("name")
 	User := c.Param("user")
-	Mode := c.Param("mode")
 	Url := c.Param("url")
 	LivesiteUrl := c.Param("livesiteurl")
 	logFile, _ := os.OpenFile(fmt.Sprintf("/var/log/hosting/%s/staging.log", Name), os.O_APPEND|os.O_RDWR|os.O_CREATE, 0644)
@@ -27,7 +26,7 @@ func createStaging(c echo.Context) error {
 	logFile.Write([]byte("Starting Staging process\n"))
 	logFile.Write([]byte("Time:" + time.Now().String() + "\n"))
 	logFile.Write([]byte("Taking ondemad backup of Live site\n"))
-	err := takeLocalOndemandBackup(Name, Mode, User, true)
+	err := takeLocalOndemandBackup(Name,User, true)
 	if err != nil {
 		logFile.Write([]byte("Error occured while taking backup \n"))
 		logFile.Write([]byte("Staging process failed\n. Exiting"))

@@ -402,16 +402,15 @@ func getLatest(backup Backup) int {
 
 func ondemadBackup(c echo.Context) error {
 	name := c.Param("name")
-	backupType := c.Param("type")
 	user := c.Param("user")
-	err := takeLocalOndemandBackup(name, backupType, user, false)
+	err := takeLocalOndemandBackup(name, user, false)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, err)
 	}
 	return c.JSON(http.StatusOK, "Success")
 }
 
-func takeLocalOndemandBackup(name string, backupType string, user string, staging bool) error {
+func takeLocalOndemandBackup(name string, user string, staging bool) error {
 	cronBusy = true
 	f, err := os.OpenFile(fmt.Sprintf("/var/log/hosting/%s/backup.log", name), os.O_APPEND|os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
