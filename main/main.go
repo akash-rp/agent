@@ -42,7 +42,7 @@ func main() {
 	e.GET("/takelocalondemandbackup/:name/:user", ondemadBackup)
 	e.GET("/localbackup/nextrun", nextrun)
 	e.GET("/localbackup/list/:name/:user/:mode", getLocalBackupsList)
-	e.GET("/restorelocalbackup/:name/:user/:mode/:id/:type", restoreBackup)
+	e.GET("/restorelocalbackup/:name/:user/:mode/:id/:type", restoreBackupFromPanel)
 	e.GET("/createstaging/:name/:user/:url/:livesiteurl", createStaging)
 	e.GET("/getdbtables/:name/:user", getDatabaseTables)
 	e.POST("/pushChanges", syncChanges)

@@ -151,15 +151,19 @@ type Staging struct {
 }
 
 type SyncChanges struct {
-	Method string `json:"method"`
-	Type   string `json:"type"`
+	Method string   `json:"method"`
+	Type   []string `json:"type"`
 	From   struct {
 		Name string `json:"name"`
 		User string `json:"user"`
+		Type string `json:"type"`
+		Url  string `json:"url"`
 	} `json:"fromSite"`
 	To struct {
 		Name string `json:"name"`
 		User string `json:"user"`
+		Type string `json:"type"`
+		Url  string `json:"url"`
 	} `json:"toSite"`
 	DbType      string   `json:"dbType"`
 	AllSelected bool     `json:"allSelected"`

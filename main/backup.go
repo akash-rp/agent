@@ -211,7 +211,7 @@ func takeBackup(name string, user string, msg string) {
 	if err != nil {
 		f.Write([]byte("Cannot save config file"))
 	}
-	exec.Command("/bin/bash", "-c", fmt.Sprintf("rm -rf /home/%s/%s/DatabaseBackup/", user, name)).Output()
+	deleteDatabaseDump(user, name)
 	if err == nil {
 		f.Write([]byte("Backup Process Completed\n"))
 		cronBusy = false
@@ -454,7 +454,7 @@ func takeLocalOndemandBackup(name string, user string, staging bool) error {
 		return errors.New("cannot create backup")
 
 	}
-	exec.Command("/bin/bash", "-c", fmt.Sprintf("rm -rf /home/%s/%s/DatabaseBackup/", user, name)).Output()
+	deleteDatabaseDump(user, name)
 	if err == nil {
 
 		f.Write([]byte("Backup Process Completed\n"))
@@ -493,12 +493,21 @@ func getLocalBackupsList(c echo.Context) error {
 
 }
 
-func restoreBackup(c echo.Context) error {
+func restoreBackupFromPanel(c echo.Context) error {
 	name := c.Param("name")
 	user := c.Param("user")
 	id := c.Param("id")
 	restoreType := c.Param("type")
 	mode := c.Param("mode")
+	err := restoreBackup(name, user, id, restoreType, mode)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, err)
+	}
+	return c.JSON(200, "success")
+}
+
+func restoreBackup(name string, user string, id string, restoreType string, mode string) error {
+
 	for cronBusy {
 		time.Sleep(time.Millisecond * 100)
 	}
@@ -507,43 +516,43 @@ func restoreBackup(c echo.Context) error {
 		if err != nil {
 			log.Print(out)
 
-			return c.JSON(echo.ErrNotFound.Code, "Failed to Restore Backup from Backup System")
+			return errors.New("failed to Restore Backup from Backup System")
 		}
 		exec.Command("/bin/bash", "-c", fmt.Sprintf("touch /home/%s/%s/DatabaseBackup/metadata", user, name)).Output()
 		out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("myloader -d /home/%s/%s/DatabaseBackup -o", user, name)).CombinedOutput()
 		if err != nil {
 			log.Print(out)
 
-			return c.JSON(echo.ErrNotFound.Code, "Failed to Restore Database")
+			return errors.New("failed to Restore Database")
 		}
-		exec.Command("/bin/bash", "-c", fmt.Sprintf("rm -rf /home/%s/%s/DatabaseBackup", user, name)).Output()
-		return c.JSON(http.StatusOK, "Success")
+		deleteDatabaseDump(user, name)
+		return nil
 	} else if restoreType == "db" {
 		out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia repository connect filesystem --path=/var/Backup/%s --password=kopia ; kopia restore %s/DatabaseBackup /home/%s/%s/DatabaseBackup", mode, id, user, name)).CombinedOutput()
 		if err != nil {
 			log.Print(out)
 
-			return c.JSON(echo.ErrNotFound.Code, "Failed to Restore Backup from Backup System")
+			return errors.New("failed to Restore Backup from Backup System")
 		}
 		exec.Command("/bin/bash", "-c", fmt.Sprintf("touch /home/%s/%s/DatabaseBackup/metadata", user, name)).Output()
 		out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("myloader -d /home/%s/%s/DatabaseBackup -o", user, name)).CombinedOutput()
 		if err != nil {
 			log.Print(out)
-			return c.JSON(echo.ErrNotFound.Code, "Failed to Restore Database")
+			return errors.New("failed to Restore Database")
 		}
-		exec.Command("/bin/bash", "-c", fmt.Sprintf("rm -rf /home/%s/%s/DatabaseBackup", user, name)).Output()
-		return c.JSON(http.StatusOK, "Success")
+		deleteDatabaseDump(user, name)
+		return nil
 	} else if restoreType == "webapp" {
 		out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia repository connect filesystem --path=/var/Backup/%s --password=kopia ; kopia restore %s /home/%s/%s", mode, id, user, name)).CombinedOutput()
 		if err != nil {
 			log.Print(out)
 
-			return c.JSON(echo.ErrNotFound.Code, "Failed to Restore Backup from Backup System")
+			return errors.New("failed to Restore Backup from Backup System")
 		}
-		exec.Command("/bin/bash", "-c", fmt.Sprintf("rm -rf /home/%s/%s/DatabaseBackup", user, name)).CombinedOutput()
-		return c.JSON(http.StatusOK, "Success")
+		deleteDatabaseDump(user, name)
+		return nil
 	}
-	return nil
+	return errors.New("invalid Request")
 }
 
 func previousBackupExecuted(t string, frequency string) bool {

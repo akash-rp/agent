@@ -26,20 +26,15 @@ func createStaging(c echo.Context) error {
 	logFile.Write([]byte("Starting Staging process\n"))
 	logFile.Write([]byte("Time:" + time.Now().String() + "\n"))
 	logFile.Write([]byte("Taking ondemad backup of Live site\n"))
-	err := takeLocalOndemandBackup(Name,User, true)
+	err := takeLocalOndemandBackup(Name, User, true)
 	if err != nil {
-		logFile.Write([]byte("Error occured while taking backup \n"))
-		logFile.Write([]byte("Staging process failed\n. Exiting"))
-		logFile.Close()
+		LogError(logFile, "Error occured while taking backup", nil, "Staging")
 		return c.JSON(http.StatusBadRequest, "Backup process Failed")
 	}
 	logFile.Write([]byte(fmt.Sprintf("Copying file and folders from %s to %s_Staging\n", Name, Name)))
 	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("cp -r /home/%s/%s /home/%s/%s_Staging", User, Name, User, Name)).CombinedOutput()
 	if err != nil {
-		logFile.Write([]byte("Error occured while copying files \n"))
-		logFile.Write([]byte(out))
-		logFile.Write([]byte("Staging process failed\n. Exiting"))
-		logFile.Close()
+		LogError(logFile, "Error occured while copying files", out, "Staging")
 		return c.JSON(echo.ErrBadRequest.Code, "Failed to copy files")
 	}
 	logFile.Write([]byte("Taking Database Dump\n"))
@@ -47,104 +42,79 @@ func createStaging(c echo.Context) error {
 	dbname := strings.TrimSuffix(string(db), "\n")
 	dbnameArray := strings.Split(dbname, "\n")
 	if len(dbnameArray) > 1 {
-		logFile.Write([]byte("Invalid wp-config file configuration\n"))
-		logFile.Write([]byte("Staging process Failed\n. Exiting"))
-		logFile.Close()
+		LogError(logFile, "Invalid wp-config file configuration", nil, "Staging")
 		return errors.New("invalid wp-config file")
 	}
 	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("mydumper -B %s -o /home/%s/%s/DatabaseBackup/", dbnameArray[0], User, Name)).CombinedOutput()
 	if err != nil {
-		logFile.Write([]byte("Failed to create database dump"))
-		logFile.Write([]byte(string(out)))
-		logFile.Write([]byte("Staging Process Failed\n"))
-		logFile.Close()
+		deleteDatabaseDump(User, Name)
+		LogError(logFile, "Failed to create database dump", out, "Staging")
 		return errors.New("database Dump error")
 	}
 	logFile.Write([]byte("Restoring Database dump to staging database\n"))
 	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("myloader -d /home/%s/%s/DatabaseBackup -o -B %s_Staging", User, Name, Name)).CombinedOutput()
 	if err != nil {
-		logFile.Write([]byte("Failed to create staging database"))
-		logFile.Write([]byte(string(out)))
-		logFile.Write([]byte("Staging Process Failed\n"))
-		logFile.Close()
-
+		deleteDatabaseDump(User, Name)
+		LogError(logFile, "Failed to create staging database", out, "Staging")
 		return c.JSON(echo.ErrNotFound.Code, "Failed to create staging database")
 	}
 	logFile.Write([]byte("Performing database search and replace opteration\n"))
 	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("php /usr/Hosting/script/srdb.cli.php -h localhost -n %s_Staging -u root -p '' -s http://%s -r http://%s -x guid -x user_email", Name, LivesiteUrl, Url)).CombinedOutput()
 	if err != nil {
-		logFile.Write([]byte("Failed to create staging database"))
-		logFile.Write([]byte(string(out)))
-		logFile.Write([]byte("Staging Process Failed\n"))
-		logFile.Close()
+		deleteDatabaseDump(User, Name)
+		LogError(logFile, "Failed to create staging database", out, "Staging")
 		return errors.New("search and replace operation failed")
 	}
 	pass, _ := password.Generate(32, 20, 0, false, true)
 	logFile.Write([]byte("creating new user and granting access to staging database\n"))
 	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -e \"CREATE USER '%s_Staging'@'localhost' IDENTIFIED BY '%s';\"", Name, pass)).CombinedOutput()
 	if err != nil {
-		logFile.Write([]byte("Failed to create staging database user\n"))
-		logFile.Write([]byte(string(out)))
-		logFile.Write([]byte("Staging Process Failed\n"))
-		logFile.Close()
+		deleteDatabaseDump(User, Name)
+		LogError(logFile, "Failed to create staging database user", out, "Staging")
 		return c.JSON(echo.ErrBadRequest.Code, "Failed to create staging user DB")
 	}
 	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -e \"GRANT ALL PRIVILEGES ON %s_Staging.* TO '%s_Staging'@'localhost';\"", Name, Name)).CombinedOutput()
 	if err != nil {
-		logFile.Write([]byte("Failed to grant privileges to the db\n"))
-		logFile.Write([]byte(string(out)))
-		logFile.Write([]byte("Staging Process Failed\n"))
-		logFile.Close()
+		deleteDatabaseDump(User, Name)
+		LogError(logFile, "Failed to grant privileges to the db", out, "Staging")
 		return c.JSON(echo.ErrBadRequest.Code, "Failed to grant privileges")
 	}
 	exec.Command("/bin/bash", "-c", "mysql -e 'FLUSH PRIVILEGES;'").Output()
+	deleteDatabaseDump(User, Name)
 	logFile.Write([]byte("Replacing wp-config file of staging site with new credentials\n"))
 	path := fmt.Sprintf("/home/%s/%s_Staging/wp-config.php", User, Name)
 	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i '/^#/!s/.*DB_NAME.*/define( \\'\\'DB_NAME\\'\\\\', \\'\\'%s_Staging\\'\\\\');/' %s", Name, path)).CombinedOutput()
 	if err != nil {
-		logFile.Write([]byte("Failed to modify DB_NAME"))
-		logFile.Write([]byte(string(out)))
-		logFile.Write([]byte("Staging Process Failed\n"))
-		logFile.Close()
+		LogError(logFile, "Failed to modify DB_NAME", out, "Staging")
 		return c.JSON(echo.ErrBadRequest.Code, "Failed to modify wp-config")
 	}
 	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i '/^#/!s/.*DB_USER.*/define( \\'\\'DB_USER\\'\\\\', \\'\\'%s_Staging\\'\\\\');/' %s", Name, path)).CombinedOutput()
 	if err != nil {
-		logFile.Write([]byte("Failed to modify DB_USER\n"))
-		logFile.Write([]byte(string(out)))
-		logFile.Write([]byte("Staging Process Failed\n"))
-		logFile.Close()
+		LogError(logFile, "Failed to modify DB_USER", out, "Staging")
 		return c.JSON(echo.ErrBadRequest.Code, "Failed to modify wp-config")
 	}
 	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i '/^#/!s/.*DB_PASSWORD.*/define( \\'\\'DB_PASSWORD\\'\\\\', \\'\\'%s\\'\\\\');/' %s", pass, path)).CombinedOutput()
 
 	if err != nil {
-		logFile.Write([]byte("Failed to modify DB_PASSWORD\n"))
-		logFile.Write([]byte(string(out)))
-		logFile.Write([]byte("Staging Process Failed\n"))
-		logFile.Close()
+		LogError(logFile, "Failed to modify DB_PASSWORD", out, "Staging")
 		return c.JSON(echo.ErrBadRequest.Code, "Failed to modify wp-config")
 	}
 	lsws := wpadd{AppName: Name + "_Staging", UserName: User, Url: Url}
 	logFile.Write([]byte("Adding site to openlitespeed vhosts\n"))
 	err = editLsws(lsws)
 	if err != nil {
-		logFile.Write([]byte("Failed to add vhost\n"))
-		logFile.Write([]byte(string(err.Error())))
-		logFile.Write([]byte("Staging Process Failed\n"))
-		logFile.Close()
+		LogError(logFile, "Failed to add vhost", out, "Staging")
 		return c.JSON(echo.ErrBadRequest.Code, "Failed to add vhost")
 	}
 	logFile.Write([]byte("Adding site to proxy\n"))
 	err = addSiteToJSON(lsws, "staging")
 	if err != nil {
-		logFile.Write([]byte("Failed to add site\n"))
-		logFile.Write([]byte(string(err.Error())))
-		logFile.Write([]byte("Staging Process Failed\n"))
-		logFile.Close()
+		LogError(logFile, "Failed to add site", out, "Staging")
 		return c.JSON(echo.ErrBadRequest.Code, "Failed to add site to proxy")
 	}
 	configNuster()
+	logFile.Write([]byte("Staging process completed\n"))
+	logFile.Close()
 	go exec.Command("/bin/bash", "-c", "service lsws restart")
 	go exec.Command("/bin/bash", "-c", "service hosting restart")
 	return c.JSON(200, "Success")
@@ -210,6 +180,131 @@ func syncChanges(c echo.Context) error {
 	if err := c.Bind(&sync); err != nil {
 		return c.NoContent(http.StatusBadRequest)
 	}
+	var live string
+	if sync.From.Type == "live" {
+		live = sync.From.Name
+	} else {
+		live = sync.To.Name
+	}
+	logFile, _ := os.OpenFile(fmt.Sprintf("/var/log/hosting/%s/staging.log", live), os.O_APPEND|os.O_RDWR|os.O_CREATE, 0644)
+	logFile.Write([]byte("------------------------------------------------------------------------------\n"))
+	logFile.Write([]byte("Starting Sync Process\n"))
+	logFile.Write([]byte("Time:" + time.Now().String() + "\n"))
+	logFile.Write([]byte(fmt.Sprintf("Taking ondemad backup of %s site\n", sync.To.Name)))
 	//First take backup of toSite
+	err := takeLocalOndemandBackup(sync.To.Name, sync.To.User, false)
+	latestBackupByte, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia repository connect filesystem --path=/var/Backup/ondemand ;  kopia snapshot list /home/%s/%s/ -l | tail -1 | awk '{print $4}'", sync.To.User, sync.To.Name)).Output()
+	latestBackup := string(latestBackupByte)
+	if err != nil {
+		return c.JSON(404, "Cannot Take backup, Sync process Stoped")
+	}
+	for _, syncType := range sync.Type {
+		if syncType == "files" {
+			err := syncCopyFiles(sync, logFile)
+			if err != nil {
+				restoreBackup(sync.To.Name, sync.To.User, latestBackup, "webapp", "ondemand")
+				return c.JSON(404, "Failed to copy files")
+			}
+		} else if syncType == "db" {
+			shouldRestore := false
+			err := syncCopyDb(sync, logFile, &shouldRestore)
+			if err != nil {
+				deleteDatabaseDump(sync.From.User, sync.From.Name)
+				if shouldRestore {
+					restoreBackup(sync.To.Name, sync.To.User, latestBackup, "db", "ondemand")
+				}
+				return c.JSON(404, "Failed to sync DB")
+			}
+		}
+	}
+	logFile.Write([]byte("Sync process successful\n"))
 	return nil
+}
+
+func syncCopyFiles(sync SyncChanges, logFile *os.File) error {
+	source := "/" + sync.From.User + "/" + sync.From.Name
+	dest := "/" + sync.To.User + "/" + sync.To.Name
+	logFile.Write([]byte("Started File copying process\n"))
+	logFile.Write([]byte(fmt.Sprintf("Copying files from /%s/%s to /%s/%s \n", sync.From.User, sync.From.Name, sync.To.User, sync.To.Name)))
+	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("rsync -ar --delete %s/ %s", source, dest)).CombinedOutput()
+	if err != nil {
+		LogError(logFile, "Error copying files", out, "Sync")
+		return errors.New(string(out))
+	}
+
+	return nil
+}
+
+func syncCopyDb(sync SyncChanges, logFile *os.File, shouldRestore *bool) error {
+
+	logFile.Write([]byte("Taking Database Dump\n"))
+	db, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/wp-config.php | grep DB_NAME | cut -d \\' -f 4", sync.From.User, sync.From.Name)).Output()
+	dbname := strings.TrimSuffix(string(db), "\n")
+	dbnameArray := strings.Split(dbname, "\n")
+	if len(dbnameArray) > 1 {
+		LogError(logFile, "Invalid wp-config file configuration", nil, "Sync")
+		return errors.New("invalid wp-config file")
+	}
+	if sync.AllSelected || sync.DbType == "full" {
+		out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("mydumper -B %s -o /home/%s/%s/DatabaseBackup/", dbnameArray[0], sync.From.User, sync.From.Name)).CombinedOutput()
+		if err != nil {
+			LogError(logFile, "Failed to create database dump", out, "Sync")
+			return errors.New("database Dump error")
+		}
+	} else {
+		logFile.Write([]byte("Following tables are being Dumped\n"))
+		var dumpTable string
+		dumpLength := len(sync.Tables)
+		for i, table := range sync.Tables {
+			if i == (dumpLength - 1) {
+				dumpTable = dumpTable + table
+				logFile.Write([]byte(table + "\n"))
+				break
+			}
+			dumpTable = dumpTable + table + ","
+			logFile.Write([]byte(table + "\t"))
+		}
+		out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("mydumper -B %s -o /home/%s/%s/DatabaseBackup/ -T %s", dbnameArray[0], sync.From.User, sync.From.Name, dumpTable)).CombinedOutput()
+		if err != nil {
+			LogError(logFile, "Failed to create database dump", out, "Sync")
+			return errors.New("database Dump error")
+		}
+	}
+
+	logFile.Write([]byte(fmt.Sprintf("Collecting DB information of %s site \n", sync.To.Name)))
+	toDb, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/wp-config.php | grep DB_NAME | cut -d \\' -f 4", sync.From.User, sync.From.Name)).Output()
+	toDbname := strings.TrimSuffix(string(toDb), "\n")
+	toDbnameArray := strings.Split(toDbname, "\n")
+	if len(toDbnameArray) > 1 {
+		LogError(logFile, fmt.Sprintf("Invalid wp-config file configuration on %s site", sync.To.Name), nil, "Sync")
+		return errors.New("invalid wp-config file")
+	}
+	*shouldRestore = true
+	logFile.Write([]byte(fmt.Sprintf("Copying %s site Database to %s site database\n", sync.From.Name, sync.To.Name)))
+
+	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("myloader -d /home/%s/%s/DatabaseBackup -o -B %s", sync.From.User, sync.From.Name, toDbnameArray[0])).CombinedOutput()
+	if err != nil {
+		LogError(logFile, "Failed to copy database", out, "Sync")
+		return errors.New("Failed to copy database")
+	}
+
+	logFile.Write([]byte("Performing database search and replace opteration\n"))
+	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("php /usr/Hosting/script/srdb.cli.php -h localhost -n %s -u root -p '' -s http://%s -r http://%s -x guid -x user_email", toDbname, sync.From.Url, sync.To.Url)).CombinedOutput()
+	if err != nil {
+		LogError(logFile, "Failed to Search and Replace url in database", out, "Sync")
+		return errors.New("search and replace operation failed")
+	}
+	deleteDatabaseDump(sync.From.User, sync.From.Name)
+	return nil
+}
+
+func deleteDatabaseDump(user string, name string) {
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("rm -rf /home/%s/%s/DatabaseBackup", user, name)).Output()
+}
+
+func LogError(logFile *os.File, errorStage string, output []byte, process string) {
+	logFile.Write([]byte(errorStage + "/n"))
+	logFile.Write(output)
+	logFile.Write([]byte(fmt.Sprintf("%s process failed\n", process)))
+	logFile.Close()
 }
