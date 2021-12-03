@@ -32,7 +32,7 @@ func createStaging(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, "Backup process Failed")
 	}
 	logFile.Write([]byte(fmt.Sprintf("Copying file and folders from %s to %s_Staging\n", Name, Name)))
-	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("cp -r /home/%s/%s /home/%s/%s_Staging", User, Name, User, Name)).CombinedOutput()
+	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("cp -r -p /home/%s/%s /home/%s/%s_Staging", User, Name, User, Name)).CombinedOutput()
 	if err != nil {
 		LogError(logFile, "Error occured while copying files", out, "Staging")
 		return c.JSON(echo.ErrBadRequest.Code, "Failed to copy files")
@@ -285,7 +285,7 @@ func syncCopyDb(sync SyncChanges, logFile *os.File, shouldRestore *bool) error {
 	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("myloader -d /home/%s/%s/DatabaseBackup -o -B %s", sync.From.User, sync.From.Name, toDbnameArray[0])).CombinedOutput()
 	if err != nil {
 		LogError(logFile, "Failed to copy database", out, "Sync")
-		return errors.New("Failed to copy database")
+		return errors.New("failed to copy database")
 	}
 
 	logFile.Write([]byte("Performing database search and replace opteration\n"))

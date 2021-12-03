@@ -73,6 +73,8 @@ frontend nonssl
 	}
 
 	conf = conf + `
+	acl has_domain hdr(Host),map_str(/opt/Hosting/routes.map) -m found
+	http-request reject if !has_domain
     acl has_cookie hdr_sub(cookie) wordpress_logged_in
     acl has_path path_sub wp-admin || wp-login
     acl static_file path_end .js || .css || .png || .jpg || .jpeg || .gif || .ico`
