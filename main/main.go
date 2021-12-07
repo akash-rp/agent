@@ -46,6 +46,8 @@ func main() {
 	e.GET("/createstaging/:name/:user/:url/:livesiteurl", createStaging)
 	e.GET("/getdbtables/:name/:user", getDatabaseTables)
 	e.POST("/syncChanges", syncChanges)
+	e.GET("/deleteStaging/:name/:user", deleteStagingSite)
+	e.POST("/deleteSite",wpDelete)
 	e.Logger.Fatal(e.Start(":8081"))
 }
 

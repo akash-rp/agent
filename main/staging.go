@@ -115,8 +115,8 @@ func createStaging(c echo.Context) error {
 	configNuster()
 	logFile.Write([]byte("Staging process completed\n"))
 	logFile.Close()
-	go exec.Command("/bin/bash", "-c", "service lsws restart")
-	go exec.Command("/bin/bash", "-c", "service hosting restart")
+	go exec.Command("/bin/bash", "-c", "service lsws restart").Output()
+	go exec.Command("/bin/bash", "-c", "service hosting restart").Output()
 	return c.JSON(200, "Success")
 }
 
@@ -339,6 +339,47 @@ func syncCopyDb(sync SyncChanges, logFile *os.File, shouldRestore *bool) error {
 
 func deleteDatabaseDump(user string, name string) {
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("rm -rf /home/%s/%s/DatabaseBackup", user, name)).Output()
+}
+
+func deleteStagingSite(c echo.Context) error {
+	name := c.Param("name")
+	user := c.Param("user")
+	err := deleteStagingSiteInternal(name, user)
+	if err != nil {
+		c.JSON(404, err)
+	}
+	return c.JSON(200, "success")
+}
+
+func deleteStagingSiteInternal(name string, user string) error {
+	// logFile, _ := os.OpenFile(fmt.Sprintf("/var/log/hosting/%s/staging.log", name), os.O_APPEND|os.O_RDWR|os.O_CREATE, 0644)
+	// logFile.Write([]byte("------------------------------------------------------------------------------\n"))
+	db, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/wp-config.php | grep DB_NAME | cut -d \\' -f 4", user, name)).Output()
+	dbname := strings.TrimSuffix(string(db), "\n")
+	dbnameArray := strings.Split(dbname, "\n")
+	if len(dbnameArray) > 1 || len(dbnameArray) == 0 {
+		return errors.New("invalid wp-config file")
+	}
+	db, _ = exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/wp-config.php | grep DB_USER | cut -d \\' -f 4", user, name)).Output()
+	dbuser := strings.TrimSuffix(string(db), "\n")
+	dbuserArray := strings.Split(dbuser, "\n")
+	if len(dbuserArray) > 1 || len(dbuserArray) == 0 {
+		return errors.New("invalid wp-config file")
+	}
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("rm -rf /home/%s/%s", user, name)).Output()
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("rm -rf /usr/local/lsws/conf/vhosts/%s.*", name)).Output()
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -e \"DROP DATABASE %s;\"", name)).Output()
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -e \"DROP USER '%s'@'localhost';\"", name)).Output()
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia repository connect filesystem --path=/var/Backup/ondemand --password=kopia ; kopia snapshot delete --all-snapshots-for-source /home/%s/%s --delete", user, name)).Output()
+	deleteSiteFromJSON(name)
+	go exec.Command("/bin/bash", "-c", "killall lsphp").Output()
+	go exec.Command("/bin/bash", "-c", "service lsws restart").Output()
+
+	configNuster()
+
+	// exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i '/%s\\/%s/d' /etc/incron.d/sites.txt", user, name)).Output()
+	go exec.Command("/bin/bash", "-c", "service hosting restart").Output()
+	return nil
 }
 
 func LogError(logFile *os.File, errorStage string, output []byte, process string) {

@@ -36,7 +36,7 @@ func addSiteToJSON(wp wpadd, siteType string) error {
 	return nil
 }
 
-func deleteSiteFromJSON(wp wpdelete) error {
+func deleteSiteFromJSON(appName string) error {
 	// data, err := ioutil.ReadFile("/usr/Hosting/config.json")
 	// if err != nil {
 	// 	return echo.NewHTTPError(404, "Config file not found")
@@ -52,7 +52,7 @@ func deleteSiteFromJSON(wp wpdelete) error {
 	// }
 
 	for i, site := range obj.Sites {
-		if site.Name == wp.AppName {
+		if site.Name == appName {
 			obj.Sites = RemoveIndex(obj.Sites, i)
 		}
 	}

@@ -29,10 +29,15 @@ type db struct {
 }
 
 type wpdelete struct {
-	AppName  string `json:"appName"`
-	UserName string `json:"userName"`
-	DbName   string `json:"dbName"`
-	DbUser   string `json:"DbUser"`
+	Main struct {
+		Name string `json:"name"`
+		User string `json:"user"`
+	} `json:"main"`
+	Staging struct {
+		Name string `json:"name"`
+		User string `json:"user"`
+	} `json:"staging"`
+	isStaging bool `json:"isStaging"`
 }
 
 type wpcert struct {

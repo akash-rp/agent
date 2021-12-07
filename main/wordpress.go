@@ -190,27 +190,36 @@ func wpAdd(c echo.Context) error {
 func wpDelete(c echo.Context) error {
 	wp := new(wpdelete)
 	c.Bind(&wp)
-	path := fmt.Sprintf("/home/%s/%s", wp.UserName, wp.AppName)
-	exec.Command("/bin/bash", "-c", fmt.Sprintf("rm -rf %s", path)).Output()
-	exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -e \"DROP DATABASE %s;\"", wp.DbName)).Output()
-	exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -e \"DROP USER '%s'@'localhost';\"", wp.DbUser)).Output()
-	exec.Command("/bin/bash", "-c", fmt.Sprintf("rm /usr/local/lsws/conf/vhosts/%s.conf", wp.AppName)).Output()
-	exec.Command("/bin/bash", "-c", fmt.Sprintf("rm -rf /usr/local/lsws/conf/vhosts/%s.d", wp.AppName)).Output()
-	go exec.Command("/bin/bash", "-c", "killall lsphp").Output()
-	go exec.Command("/bin/bash", "-c", "service lsws restart").Output()
+	db, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/wp-config.php | grep DB_NAME | cut -d \\' -f 4", wp.Main.User, wp.Main.Name)).Output()
+	dbname := strings.TrimSuffix(string(db), "\n")
+	dbnameArray := strings.Split(dbname, "\n")
+	if len(dbnameArray) > 1 || len(dbnameArray) == 0 {
+		return c.JSON(404, "invalid wp-config file")
+	}
+	db, _ = exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/wp-config.php | grep DB_USER | cut -d \\' -f 4", wp.Main.User, wp.Main.Name)).Output()
+	dbuser := strings.TrimSuffix(string(db), "\n")
+	dbuserArray := strings.Split(dbuser, "\n")
+	if len(dbuserArray) > 1 || len(dbuserArray) == 0 {
+		return c.JSON(404, "invalid wp-config file")
+	}
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("rm -rf /home/%s/%s", wp.Main.User, wp.Main.Name)).Output()
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("rm -rf /usr/local/lsws/conf/vhosts/%s.*", wp.Main.Name)).Output()
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -e \"DROP DATABASE %s;\"", wp.Main.Name)).Output()
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -e \"DROP USER '%s'@'localhost';\"", wp.Main.Name)).Output()
+	// exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia repository connect filesystem --path=/var/Backup/ondemand --password=kopia ; kopia snapshot delete --all-snapshots-for-source /home/%s/%s --delete", user, name)).Output()
+	deleteSiteFromJSON(wp.Main.Name)
+	if wp.isStaging {
+		deleteStagingSiteInternal(wp.Staging.Name, wp.Staging.User)
+	} else {
+		go exec.Command("/bin/bash", "-c", "killall lsphp").Output()
+		go exec.Command("/bin/bash", "-c", "service lsws restart").Output()
 
-	err := deleteSiteFromJSON(*wp)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "Cannot delete from Json file")
+		configNuster()
+
+		go exec.Command("/bin/bash", "-c", "service hosting restart").Output()
 	}
 
-	err = configNuster()
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "Cannot config nuster file")
-	}
-	exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i '/%s\\/%s/d' /etc/incron.d/sites.txt", wp.UserName, wp.AppName)).Output()
-	go exec.Command("/bin/bash", "-c", "service hosting restart").Output()
-
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i '/%s\\/%s/d' /etc/incron.d/sites.txt", wp.Main.User, wp.Main.Name)).Output()
 	return c.String(http.StatusOK, "Delete success")
 }
 
