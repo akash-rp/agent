@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -204,11 +205,13 @@ func wpDelete(c echo.Context) error {
 	}
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("rm -rf /home/%s/%s", wp.Main.User, wp.Main.Name)).Output()
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("rm -rf /usr/local/lsws/conf/vhosts/%s.*", wp.Main.Name)).Output()
-	exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -e \"DROP DATABASE %s;\"", wp.Main.Name)).Output()
-	exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -e \"DROP USER '%s'@'localhost';\"", wp.Main.Name)).Output()
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -e \"DROP DATABASE %s;\"", dbname)).Output()
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -e \"DROP USER '%s'@'localhost';\"", dbuser)).Output()
 	// exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia repository connect filesystem --path=/var/Backup/ondemand --password=kopia ; kopia snapshot delete --all-snapshots-for-source /home/%s/%s --delete", user, name)).Output()
 	deleteSiteFromJSON(wp.Main.Name)
-	if wp.isStaging {
+	log.Print("Checking if staging is true")
+	log.Print(fmt.Sprintf("Staging is %t", wp.IsStaging))
+	if wp.IsStaging {
 		deleteStagingSiteInternal(wp.Staging.Name, wp.Staging.User)
 	} else {
 		go exec.Command("/bin/bash", "-c", "killall lsphp").Output()

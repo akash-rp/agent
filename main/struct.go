@@ -37,7 +37,7 @@ type wpdelete struct {
 		Name string `json:"name"`
 		User string `json:"user"`
 	} `json:"staging"`
-	isStaging bool `json:"isStaging"`
+	IsStaging bool `json:"isStaging"`
 }
 
 type wpcert struct {
