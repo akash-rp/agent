@@ -44,7 +44,7 @@ defaults
 	option httplog
 	mode http
 `)
-	conf = conf + ("\tlog-format \"%[capture.req.hdr(0)] %[capture.res.hdr(0)] %%ci [%tr] %%b %{+Q}r %%TR/%%Tw/%%Tc/%%Tr/%%Ta %ST %B %%tsc %ac/%%fc/%%bc/%%sc/%rc [%[capture.req.hdr(1)]]\"")
+	conf = conf + ("\tlog-format \"%[capture.req.hdr(0)] %[capture.res.hdr(0)] %ci [%tr] %b %{+Q}r %TR/%Tw/%Tc/%Tr/%Ta %ST %B %tsc %ac/%fc/%bc/%sc/%rc [%[capture.req.hdr(1)]]\"")
 	conf = conf + fmt.Sprintf(`
 	option http-ignore-probes
 	timeout connect %ds
@@ -60,7 +60,7 @@ defaults
 
 	conf = conf + `
 frontend nonssl
-    bind *:80
+	bind *:80
 	option forwardfor`
 
 	if obj.SSL {
@@ -91,7 +91,7 @@ frontend nonssl
     use_backend static if static_file`
 	if len(obj.Sites) != 0 {
 		conf = conf + `
-	use_backend %[req.hdr(host),map(/opt/Hosting/routes.map)] if { req.hdr(host),map(/opt/Hosting/routes.map) -m found }
+use_backend %[req.hdr(host),map(/opt/Hosting/routes.map)] if { req.hdr(host),map(/opt/Hosting/routes.map) -m found }
 	use_backend %[req.hdr(host),map_sub(/opt/Hosting/wildcardroutes.map)] if { req.hdr(host),map_sub(/opt/Hosting/wildcardroutes.map) -m found }`
 	}
 	for i, backend := range obj.Sites {
