@@ -45,7 +45,7 @@ virtualhost %s {
 		return echo.NewHTTPError(http.StatusBadRequest, "Error 5")
 	}
 	second := fmt.Sprintf(`
-docRoot $VH_ROOT/
+docRoot $VH_ROOT/public/
 VhDomain %s
 enableGzip 1
 

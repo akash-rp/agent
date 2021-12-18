@@ -103,7 +103,7 @@ func changePrimary(c echo.Context) error {
 	}
 	back, _ := json.MarshalIndent(obj, "", "  ")
 	ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
-	db, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/wp-config.php | grep DB_NAME | cut -d \\' -f 4", ChangeDomain.User, ChangeDomain.Name)).Output()
+	db, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/public/wp-config.php | grep DB_NAME | cut -d \\' -f 4", ChangeDomain.User, ChangeDomain.Name)).Output()
 	dbname := strings.TrimSuffix(string(db), "\n")
 	dbnameArray := strings.Split(dbname, "\n")
 	if len(dbnameArray) > 1 {

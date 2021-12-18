@@ -38,12 +38,12 @@ global
 	chroot /var/lib/hosting
 	log /dev/log/ local0`, obj.Global.Datasize, obj.Global.Maxconn)
 
-	conf = conf + fmt.Sprintf(`
+	conf = conf + `
 defaults
 	log global
 	option httplog
 	mode http
-`)
+`
 	conf = conf + ("\tlog-format \"%[capture.req.hdr(0)] %[capture.res.hdr(0)] %ci [%tr] %b %{+Q}r %TR/%Tw/%Tc/%Tr/%Ta %ST %B %tsc %ac/%fc/%bc/%sc/%rc [%[capture.req.hdr(1)]]\"")
 	conf = conf + fmt.Sprintf(`
 	option http-ignore-probes
@@ -77,21 +77,21 @@ frontend nonssl
 
 	conf = conf + `
 	http-request capture req.hdr(Host) len 100
-    http-request capture req.fhdr(User-Agent) len 100
+	http-request capture req.fhdr(User-Agent) len 100
 	declare capture response len 20
 	http-response capture res.hdr(x-cache) id 0
 	acl has_domain hdr(Host),map_str(/opt/Hosting/routes.map) -m found
 	http-request reject if !has_domain
-    acl has_cookie hdr_sub(cookie) wordpress_logged_in
-    acl has_path path_sub wp-admin || wp-login
-    acl static_file path_end .js || .css || .png || .jpg || .jpeg || .gif || .ico`
+	acl has_cookie hdr_sub(cookie) wordpress_logged_in
+	acl has_path path_sub wp-admin || wp-login
+	acl static_file path_end .js || .css || .png || .jpg || .jpeg || .gif || .ico`
 
 	conf = conf + `
-    use_backend nocache if has_path || has_cookie
-    use_backend static if static_file`
+	use_backend nocache if has_path || has_cookie
+	use_backend static if static_file`
 	if len(obj.Sites) != 0 {
 		conf = conf + `
-use_backend %[req.hdr(host),map(/opt/Hosting/routes.map)] if { req.hdr(host),map(/opt/Hosting/routes.map) -m found }
+	use_backend %[req.hdr(host),map(/opt/Hosting/routes.map)] if { req.hdr(host),map(/opt/Hosting/routes.map) -m found }
 	use_backend %[req.hdr(host),map_sub(/opt/Hosting/wildcardroutes.map)] if { req.hdr(host),map_sub(/opt/Hosting/wildcardroutes.map) -m found }`
 	}
 	for i, backend := range obj.Sites {

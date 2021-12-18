@@ -162,7 +162,7 @@ func takeBackup(name string, user string, msg string) {
 	f.Write([]byte("Time:" + time.Now().String() + "\n"))
 	f.Write([]byte(user))
 	f.Write([]byte(name))
-	db, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/wp-config.php | grep DB_NAME | cut -d \\' -f 4", user, name)).CombinedOutput()
+	db, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/public/wp-config.php | grep DB_NAME | cut -d \\' -f 4", user, name)).CombinedOutput()
 	if err != nil {
 		f.Write([]byte("Failed to DB Name"))
 		f.Write([]byte(db))
@@ -185,7 +185,7 @@ func takeBackup(name string, user string, msg string) {
 		cronBusy = false
 		return
 	}
-	dbout, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("mydumper -B %s -o /home/%s/%s/DatabaseBackup/", dbnameArray[0], user, name)).CombinedOutput()
+	dbout, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("mydumper -B %s -o /home/%s/%s/private/DatabaseBackup/", dbnameArray[0], user, name)).CombinedOutput()
 	if err != nil {
 		f.Write([]byte("Failed to create database backup"))
 		f.Write([]byte(string(dbout)))
@@ -194,7 +194,7 @@ func takeBackup(name string, user string, msg string) {
 		cronBusy = false
 		return
 	}
-	exec.Command("/bin/bash", "-c", fmt.Sprintf("rm /home/%s/%s/DatabaseBackup/metadata", user, name)).Output()
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("rm /home/%s/%s/private/DatabaseBackup/metadata", user, name)).Output()
 	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia repository connect filesystem --path=/var/Backup/automatic --password=kopia ; kopia snapshot create /home/%s/%s", user, name)).CombinedOutput()
 	if err != nil {
 		f.Write([]byte("Cannot create backup"))
@@ -422,7 +422,7 @@ func takeLocalOndemandBackup(name string, user string, staging bool) error {
 		f.Write([]byte("Process started for crceating staging site\n"))
 	}
 	f.Write([]byte("Time:" + time.Now().String() + "\n"))
-	db, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/wp-config.php | grep DB_NAME | cut -d \\' -f 4", user, name)).Output()
+	db, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/public/wp-config.php | grep DB_NAME | cut -d \\' -f 4", user, name)).Output()
 	dbname := strings.TrimSuffix(string(db), "\n")
 	dbnameArray := strings.Split(dbname, "\n")
 	if len(dbnameArray) > 1 {
@@ -432,7 +432,7 @@ func takeLocalOndemandBackup(name string, user string, staging bool) error {
 		cronBusy = false
 		return errors.New("invalid wp-config file")
 	}
-	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("mydumper -B %s -o /home/%s/%s/DatabaseBackup/", dbnameArray[0], user, name)).CombinedOutput()
+	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("mydumper -B %s -o /home/%s/%s/private/DatabaseBackup/", dbnameArray[0], user, name)).CombinedOutput()
 	if err != nil {
 		f.Write([]byte("Failed to create database backup"))
 		f.Write([]byte(string(out)))
@@ -441,7 +441,7 @@ func takeLocalOndemandBackup(name string, user string, staging bool) error {
 		cronBusy = false
 		return errors.New("database Dump error")
 	}
-	exec.Command("/bin/bash", "-c", fmt.Sprintf("rm /home/%s/%s/DatabaseBackup/metadata", user, name)).Output()
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("rm /home/%s/%s/private/DatabaseBackup/metadata", user, name)).Output()
 
 	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia repository connect filesystem --path=/var/Backup/ondemand --password=kopia ; kopia snapshot create /home/%s/%s", user, name)).CombinedOutput()
 
@@ -518,8 +518,8 @@ func restoreBackup(name string, user string, id string, restoreType string, mode
 
 			return errors.New("failed to Restore Backup from Backup System")
 		}
-		exec.Command("/bin/bash", "-c", fmt.Sprintf("touch /home/%s/%s/DatabaseBackup/metadata", user, name)).Output()
-		out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("myloader -d /home/%s/%s/DatabaseBackup -o", user, name)).CombinedOutput()
+		exec.Command("/bin/bash", "-c", fmt.Sprintf("touch /home/%s/%s/private/DatabaseBackup/metadata", user, name)).Output()
+		out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("myloader -d /home/%s/%s/private/DatabaseBackup -o", user, name)).CombinedOutput()
 		if err != nil {
 			log.Print(out)
 
@@ -528,14 +528,14 @@ func restoreBackup(name string, user string, id string, restoreType string, mode
 		deleteDatabaseDump(user, name)
 		return nil
 	} else if restoreType == "db" {
-		out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia repository connect filesystem --path=/var/Backup/%s --password=kopia ; kopia restore %s/DatabaseBackup /home/%s/%s/DatabaseBackup", mode, id, user, name)).CombinedOutput()
+		out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia repository connect filesystem --path=/var/Backup/%s --password=kopia ; kopia restore %s/DatabaseBackup /home/%s/%s/private/DatabaseBackup", mode, id, user, name)).CombinedOutput()
 		if err != nil {
 			log.Print(out)
 
 			return errors.New("failed to Restore Backup from Backup System")
 		}
-		exec.Command("/bin/bash", "-c", fmt.Sprintf("touch /home/%s/%s/DatabaseBackup/metadata", user, name)).Output()
-		out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("myloader -d /home/%s/%s/DatabaseBackup -o", user, name)).CombinedOutput()
+		exec.Command("/bin/bash", "-c", fmt.Sprintf("touch /home/%s/%s/private/DatabaseBackup/metadata", user, name)).Output()
+		out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("myloader -d /home/%s/%s/private/DatabaseBackup -o", user, name)).CombinedOutput()
 		if err != nil {
 			log.Print(out)
 			return errors.New("failed to Restore Database")

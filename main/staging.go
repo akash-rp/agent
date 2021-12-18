@@ -38,21 +38,21 @@ func createStaging(c echo.Context) error {
 		return c.JSON(echo.ErrBadRequest.Code, "Failed to copy files")
 	}
 	logFile.Write([]byte("Taking Database Dump\n"))
-	db, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/wp-config.php | grep DB_NAME | cut -d \\' -f 4", User, Name)).Output()
+	db, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/public/wp-config.php | grep DB_NAME | cut -d \\' -f 4", User, Name)).Output()
 	dbname := strings.TrimSuffix(string(db), "\n")
 	dbnameArray := strings.Split(dbname, "\n")
 	if len(dbnameArray) > 1 {
 		LogError(logFile, "Invalid wp-config file configuration", nil, "Staging")
 		return errors.New("invalid wp-config file")
 	}
-	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("mydumper -B %s -o /home/%s/%s/DatabaseBackup/", dbnameArray[0], User, Name)).CombinedOutput()
+	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("mydumper -B %s -o /home/%s/%s/private/DatabaseBackup/", dbnameArray[0], User, Name)).CombinedOutput()
 	if err != nil {
 		deleteDatabaseDump(User, Name)
 		LogError(logFile, "Failed to create database dump", out, "Staging")
 		return errors.New("database Dump error")
 	}
 	logFile.Write([]byte("Restoring Database dump to staging database\n"))
-	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("myloader -d /home/%s/%s/DatabaseBackup -o -B %s_Staging", User, Name, Name)).CombinedOutput()
+	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("myloader -d /home/%s/%s/private/DatabaseBackup -o -B %s_Staging", User, Name, Name)).CombinedOutput()
 	if err != nil {
 		deleteDatabaseDump(User, Name)
 		LogError(logFile, "Failed to create staging database", out, "Staging")
@@ -124,20 +124,20 @@ func getDatabaseTables(c echo.Context) error {
 	Name := c.Param("name")
 	User := c.Param("user")
 	var tables []string
-	db, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/wp-config.php | grep DB_NAME | cut -d \\' -f 4", User, Name)).Output()
+	db, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/public/wp-config.php | grep DB_NAME | cut -d \\' -f 4", User, Name)).Output()
 	dbname := strings.TrimSuffix(string(db), "\n")
 	dbnameArray := strings.Split(dbname, "\n")
 	if len(dbnameArray) > 1 || len(dbnameArray) == 0 {
 		return errors.New("invalid wp-config file")
 	}
-	db, _ = exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/wp-config.php | grep DB_USER | cut -d \\' -f 4", User, Name)).Output()
+	db, _ = exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/public/wp-config.php | grep DB_USER | cut -d \\' -f 4", User, Name)).Output()
 	dbuser := strings.TrimSuffix(string(db), "\n")
 	dbuserArray := strings.Split(dbuser, "\n")
 	if len(dbuserArray) > 1 || len(dbuserArray) == 0 {
 
 		return errors.New("invalid wp-config file")
 	}
-	db, _ = exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/wp-config.php | grep DB_PASSWORD | cut -d \\' -f 4", User, Name)).Output()
+	db, _ = exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/public/wp-config.php | grep DB_PASSWORD | cut -d \\' -f 4", User, Name)).Output()
 	dbpassword := strings.TrimSuffix(string(db), "\n")
 	dbpasswordArray := strings.Split(dbpassword, "\n")
 	if len(dbpasswordArray) > 1 || len(dbpasswordArray) == 0 {
@@ -226,20 +226,20 @@ func syncCopyFiles(sync SyncChanges, logFile *os.File) error {
 	dest := "/home/" + sync.To.User + "/" + sync.To.Name
 	logFile.Write([]byte("Started File copying process\n"))
 	//get db name,user,password of toSite before rsync
-	db, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/wp-config.php | grep DB_NAME | cut -d \\' -f 4", sync.To.User, sync.To.Name)).Output()
+	db, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/public/wp-config.php | grep DB_NAME | cut -d \\' -f 4", sync.To.User, sync.To.Name)).Output()
 	dbname := strings.TrimSuffix(string(db), "\n")
 	dbnameArray := strings.Split(dbname, "\n")
 	if len(dbnameArray) > 1 || len(dbnameArray) == 0 {
 		return errors.New("invalid wp-config file")
 	}
-	db, _ = exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/wp-config.php | grep DB_USER | cut -d \\' -f 4", sync.To.User, sync.To.Name)).Output()
+	db, _ = exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/public/wp-config.php | grep DB_USER | cut -d \\' -f 4", sync.To.User, sync.To.Name)).Output()
 	dbuser := strings.TrimSuffix(string(db), "\n")
 	dbuserArray := strings.Split(dbuser, "\n")
 	if len(dbuserArray) > 1 || len(dbuserArray) == 0 {
 
 		return errors.New("invalid wp-config file")
 	}
-	db, _ = exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/wp-config.php | grep DB_PASSWORD | cut -d \\' -f 4", sync.To.User, sync.To.Name)).Output()
+	db, _ = exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/public/wp-config.php | grep DB_PASSWORD | cut -d \\' -f 4", sync.To.User, sync.To.Name)).Output()
 	dbpassword := strings.TrimSuffix(string(db), "\n")
 	dbpasswordArray := strings.Split(dbpassword, "\n")
 	if len(dbpasswordArray) > 1 || len(dbpasswordArray) == 0 {
@@ -254,7 +254,7 @@ func syncCopyFiles(sync SyncChanges, logFile *os.File) error {
 		return errors.New(string(out))
 	}
 	//replace wp-config file with old db credientials
-	path := fmt.Sprintf("/home/%s/%s/wp-config.php", sync.To.User, sync.To.Name)
+	path := fmt.Sprintf("/home/%s/%s/public/wp-config.php", sync.To.User, sync.To.Name)
 	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i '/^#/!s/.*DB_NAME.*/define( \\'\\'DB_NAME\\'\\\\', \\'\\'%s\\'\\\\');/' %s", dbname, path)).CombinedOutput()
 	if err != nil {
 		LogError(logFile, "Failed to modify DB_NAME", out, "Staging")
@@ -277,7 +277,7 @@ func syncCopyFiles(sync SyncChanges, logFile *os.File) error {
 func syncCopyDb(sync SyncChanges, logFile *os.File, shouldRestore *bool) error {
 
 	logFile.Write([]byte("Taking Database Dump\n"))
-	db, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/wp-config.php | grep DB_NAME | cut -d \\' -f 4", sync.From.User, sync.From.Name)).Output()
+	db, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/public/wp-config.php | grep DB_NAME | cut -d \\' -f 4", sync.From.User, sync.From.Name)).Output()
 	dbname := strings.TrimSuffix(string(db), "\n")
 	dbnameArray := strings.Split(dbname, "\n")
 	if len(dbnameArray) > 1 {
@@ -285,7 +285,7 @@ func syncCopyDb(sync SyncChanges, logFile *os.File, shouldRestore *bool) error {
 		return errors.New("invalid wp-config file")
 	}
 	if sync.AllSelected || sync.DbType == "full" {
-		out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("mydumper -B %s -o /home/%s/%s/DatabaseBackup/", dbnameArray[0], sync.From.User, sync.From.Name)).CombinedOutput()
+		out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("mydumper -B %s -o /home/%s/%s/private/DatabaseBackup/", dbnameArray[0], sync.From.User, sync.From.Name)).CombinedOutput()
 		if err != nil {
 			LogError(logFile, "Failed to create database dump", out, "Sync")
 			return errors.New("database Dump error")
@@ -303,7 +303,7 @@ func syncCopyDb(sync SyncChanges, logFile *os.File, shouldRestore *bool) error {
 			dumpTable = dumpTable + table + ","
 			logFile.Write([]byte(table + "\t"))
 		}
-		out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("mydumper -B %s -o /home/%s/%s/DatabaseBackup/ -T %s", dbnameArray[0], sync.From.User, sync.From.Name, dumpTable)).CombinedOutput()
+		out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("mydumper -B %s -o /home/%s/%s/private/DatabaseBackup/ -T %s", dbnameArray[0], sync.From.User, sync.From.Name, dumpTable)).CombinedOutput()
 		if err != nil {
 			LogError(logFile, "Failed to create database dump", out, "Sync")
 			return errors.New("database Dump error")
@@ -311,7 +311,7 @@ func syncCopyDb(sync SyncChanges, logFile *os.File, shouldRestore *bool) error {
 	}
 
 	logFile.Write([]byte(fmt.Sprintf("Collecting DB information of %s site \n", sync.To.Name)))
-	toDb, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/wp-config.php | grep DB_NAME | cut -d \\' -f 4", sync.To.User, sync.To.Name)).Output()
+	toDb, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/public/wp-config.php | grep DB_NAME | cut -d \\' -f 4", sync.To.User, sync.To.Name)).Output()
 	toDbname := strings.TrimSuffix(string(toDb), "\n")
 	toDbnameArray := strings.Split(toDbname, "\n")
 	if len(toDbnameArray) > 1 {
@@ -321,7 +321,7 @@ func syncCopyDb(sync SyncChanges, logFile *os.File, shouldRestore *bool) error {
 	*shouldRestore = true
 	logFile.Write([]byte(fmt.Sprintf("Copying %s site Database to %s site database\n", sync.From.Name, sync.To.Name)))
 
-	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("myloader -d /home/%s/%s/DatabaseBackup -o -B %s", sync.From.User, sync.From.Name, toDbnameArray[0])).CombinedOutput()
+	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("myloader -d /home/%s/%s/private/DatabaseBackup -o -B %s", sync.From.User, sync.From.Name, toDbnameArray[0])).CombinedOutput()
 	if err != nil {
 		LogError(logFile, "Failed to copy database", out, "Sync")
 		return errors.New("failed to copy database")
@@ -338,7 +338,7 @@ func syncCopyDb(sync SyncChanges, logFile *os.File, shouldRestore *bool) error {
 }
 
 func deleteDatabaseDump(user string, name string) {
-	exec.Command("/bin/bash", "-c", fmt.Sprintf("rm -rf /home/%s/%s/DatabaseBackup", user, name)).Output()
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("rm -rf /home/%s/%s/private/DatabaseBackup", user, name)).Output()
 }
 
 func deleteStagingSite(c echo.Context) error {
@@ -354,13 +354,13 @@ func deleteStagingSite(c echo.Context) error {
 func deleteStagingSiteInternal(name string, user string) error {
 	// logFile, _ := os.OpenFile(fmt.Sprintf("/var/log/hosting/%s/staging.log", name), os.O_APPEND|os.O_RDWR|os.O_CREATE, 0644)
 	// logFile.Write([]byte("------------------------------------------------------------------------------\n"))
-	db, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/wp-config.php | grep DB_NAME | cut -d \\' -f 4", user, name)).Output()
+	db, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/public/wp-config.php | grep DB_NAME | cut -d \\' -f 4", user, name)).Output()
 	dbname := strings.TrimSuffix(string(db), "\n")
 	dbnameArray := strings.Split(dbname, "\n")
 	if len(dbnameArray) > 1 || len(dbnameArray) == 0 {
 		return errors.New("invalid wp-config file")
 	}
-	db, _ = exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/wp-config.php | grep DB_USER | cut -d \\' -f 4", user, name)).Output()
+	db, _ = exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/public/wp-config.php | grep DB_USER | cut -d \\' -f 4", user, name)).Output()
 	dbuser := strings.TrimSuffix(string(db), "\n")
 	dbuserArray := strings.Split(dbuser, "\n")
 	if len(dbuserArray) > 1 || len(dbuserArray) == 0 {

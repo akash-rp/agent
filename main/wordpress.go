@@ -75,6 +75,8 @@ func wpAdd(c echo.Context) error {
 	//Create folder in user home directory for wordpress
 	path = fmt.Sprintf("/home/%s/%s", wp.UserName, wp.AppName)
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("mkdir %s", path)).Output()
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("mkdir %s/{public,private}", path)).Output()
+
 	_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("chown %s:%s %s", wp.UserName, wp.UserName, path)).Output()
 	if err != nil {
 		result := &errcode{
@@ -83,7 +85,7 @@ func wpAdd(c echo.Context) error {
 		}
 		return c.JSON(http.StatusBadRequest, result)
 	}
-
+	path = path + "/public"
 	// Download wordpress
 	_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %s -i -- /usr/Hosting/wp-cli core download --path=%s", wp.UserName, path)).Output()
 	if err != nil {
@@ -191,13 +193,13 @@ func wpAdd(c echo.Context) error {
 func wpDelete(c echo.Context) error {
 	wp := new(wpdelete)
 	c.Bind(&wp)
-	db, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/wp-config.php | grep DB_NAME | cut -d \\' -f 4", wp.Main.User, wp.Main.Name)).Output()
+	db, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/public/wp-config.php | grep DB_NAME | cut -d \\' -f 4", wp.Main.User, wp.Main.Name)).Output()
 	dbname := strings.TrimSuffix(string(db), "\n")
 	dbnameArray := strings.Split(dbname, "\n")
 	if len(dbnameArray) > 1 || len(dbnameArray) == 0 {
 		return c.JSON(404, "invalid wp-config file")
 	}
-	db, _ = exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/wp-config.php | grep DB_USER | cut -d \\' -f 4", wp.Main.User, wp.Main.Name)).Output()
+	db, _ = exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/public/wp-config.php | grep DB_USER | cut -d \\' -f 4", wp.Main.User, wp.Main.Name)).Output()
 	dbuser := strings.TrimSuffix(string(db), "\n")
 	dbuserArray := strings.Split(dbuser, "\n")
 	if len(dbuserArray) > 1 || len(dbuserArray) == 0 {
