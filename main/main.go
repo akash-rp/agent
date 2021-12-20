@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-co-op/gocron"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 )
 
 var obj Config
@@ -20,6 +21,11 @@ var cronInt = gocron.NewScheduler(time.UTC)
 
 func main() {
 	e := echo.New()
+	e.Debug = true
+
+	// Middleware
+	e.Use(middleware.Logger())
+	e.Use(middleware.Recover())
 	data, err := ioutil.ReadFile("/usr/Hosting/config.json")
 	if err != nil {
 		log.Fatal("Cannot read file")
@@ -47,7 +53,9 @@ func main() {
 	e.GET("/getdbtables/:name/:user", getDatabaseTables)
 	e.POST("/syncChanges", syncChanges)
 	e.GET("/deleteStaging/:name/:user", deleteStagingSite)
-	e.POST("/deleteSite",wpDelete)
+	e.POST("/deleteSite", wpDelete)
+	e.POST("/addSSH/:user", addSSHkey)
+	e.POST("/removeSSH/:user", removeSSHkey)
 	e.Logger.Fatal(e.Start(":8081"))
 }
 

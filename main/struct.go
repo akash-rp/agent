@@ -174,3 +174,7 @@ type SyncChanges struct {
 	AllSelected bool     `json:"allSelected"`
 	Tables      []string `json:"tables"`
 }
+
+type SSH struct {
+	Key string `json:"key"`
+}
