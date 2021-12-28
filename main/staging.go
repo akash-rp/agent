@@ -82,7 +82,7 @@ func createStaging(c echo.Context) error {
 	exec.Command("/bin/bash", "-c", "mysql -e 'FLUSH PRIVILEGES;'").Output()
 	deleteDatabaseDump(User, Name)
 	logFile.Write([]byte("Replacing wp-config file of staging site with new credentials\n"))
-	path := fmt.Sprintf("/home/%s/%s_Staging/wp-config.php", User, Name)
+	path := fmt.Sprintf("/home/%s/%s_Staging/public/wp-config.php", User, Name)
 	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i '/^#/!s/.*DB_NAME.*/define( \\'\\'DB_NAME\\'\\\\', \\'\\'%s_Staging\\'\\\\');/' %s", Name, path)).CombinedOutput()
 	if err != nil {
 		LogError(logFile, "Failed to modify DB_NAME", out, "Staging")
@@ -178,7 +178,7 @@ func getDatabaseTables(c echo.Context) error {
 func syncChanges(c echo.Context) error {
 	var sync SyncChanges
 	if err := c.Bind(&sync); err != nil {
-		return c.NoContent(http.StatusBadRequest)
+		return c.JSON(400, err.Error())
 	}
 	var live string
 	if sync.From.Type == "live" {
@@ -248,14 +248,49 @@ func syncCopyFiles(sync SyncChanges, logFile *os.File) error {
 	}
 	//copy files
 	logFile.Write([]byte(fmt.Sprintf("Copying files from /%s/%s to /%s/%s \n", sync.From.User, sync.From.Name, sync.To.User, sync.To.Name)))
-	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("rsync -ar --delete %s/ %s", source, dest)).CombinedOutput()
-	if err != nil {
-		LogError(logFile, "Error copying files", out, "Sync")
-		return errors.New(string(out))
+	logFile.Write([]byte(fmt.Sprintf("Performing %s operation", sync.CopyMethod)))
+	if sync.CopyMethod == "overwrite" {
+		out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("rsync -ar --delete %s/ %s", source, dest)).CombinedOutput()
+		if err != nil {
+			LogError(logFile, "Error copying files", out, "Sync")
+			return errors.New(string(out))
+		}
+	} else {
+		var exclude string
+		for _, file := range sync.Exclude.Files {
+
+			exclude = exclude + fmt.Sprintf("'%s',", file)
+
+		}
+		for _, folder := range sync.Exclude.Folders {
+
+			exclude = exclude + fmt.Sprintf("'%s',", folder)
+
+		}
+		if len(sync.Exclude.Files) == 0 && len(sync.Exclude.Folders) == 0 {
+			out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("rsync -ar %s/ %s", source, dest)).CombinedOutput()
+			if err != nil {
+				LogError(logFile, "Error copying files", out, "Sync")
+				return errors.New(string(out))
+			}
+		}
+		if sync.DeleteDestFiles {
+			out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("rsync -ar --delete --exclude={%s} %s/ %s", exclude, source, dest)).CombinedOutput()
+			if err != nil {
+				LogError(logFile, "Error copying files", out, "Sync")
+				return errors.New(string(out))
+			}
+		} else {
+			out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("rsync -ar --exclude={%s} %s/ %s", exclude, source, dest)).CombinedOutput()
+			if err != nil {
+				LogError(logFile, "Error copying files", out, "Sync")
+				return errors.New(string(out))
+			}
+		}
 	}
 	//replace wp-config file with old db credientials
 	path := fmt.Sprintf("/home/%s/%s/public/wp-config.php", sync.To.User, sync.To.Name)
-	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i '/^#/!s/.*DB_NAME.*/define( \\'\\'DB_NAME\\'\\\\', \\'\\'%s\\'\\\\');/' %s", dbname, path)).CombinedOutput()
+	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i '/^#/!s/.*DB_NAME.*/define( \\'\\'DB_NAME\\'\\\\', \\'\\'%s\\'\\\\');/' %s", dbname, path)).CombinedOutput()
 	if err != nil {
 		LogError(logFile, "Failed to modify DB_NAME", out, "Staging")
 		return errors.New("failed to modify wp-config")

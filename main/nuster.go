@@ -40,7 +40,7 @@ global
 
 	conf = conf + `
 defaults
-	log global
+	log /dev/log/ local0
 	option httplog
 	mode http
 `
@@ -61,7 +61,9 @@ defaults
 	conf = conf + `
 frontend nonssl
 	bind *:80
-	option forwardfor`
+	option forwardfor
+	acl letsencrypt-acl path_beg /.well-known/acme-challenge/
+    use_backend letsencrypt-backend if letsencrypt-acl`
 
 	if obj.SSL {
 		conf = conf + `
@@ -81,7 +83,8 @@ frontend nonssl
 	declare capture response len 20
 	http-response capture res.hdr(x-cache) id 0
 	acl has_domain hdr(Host),map_str(/opt/Hosting/routes.map) -m found
-	http-request reject if !has_domain
+	acl has_wildcard hdr(Host),map_sub(/opt/Hosting/wildcardroutes.map) -m found
+	http-request reject if !has_domain !has_wildcard
 	acl has_cookie hdr_sub(cookie) wordpress_logged_in
 	acl has_path path_sub wp-admin || wp-login
 	acl static_file path_end .js || .css || .png || .jpg || .jpeg || .gif || .ico`
@@ -115,7 +118,9 @@ backend static
 backend Staging
     http-response set-header x-cache BYPASS
     http-response set-header x-type STAGING
-	server s2 0.0.0.0:8088`
+	server s2 0.0.0.0:8088
+backend letsencrypt-backend
+    server letsencrypt 127.0.0.1:8888`
 
 	conf = conf + "\n"
 	// the WriteFile method returns an error if unsuccessful

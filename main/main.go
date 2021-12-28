@@ -56,6 +56,8 @@ func main() {
 	e.POST("/deleteSite", wpDelete)
 	e.POST("/addSSH/:user", addSSHkey)
 	e.POST("/removeSSH/:user", removeSSHkey)
+	e.GET("/ptlist/:user/:name", getPluginAndThemesStatus)
+	e.POST("/ptoperation/:user/:name", updatePluginsThemes)
 	e.Logger.Fatal(e.Start(":8081"))
 }
 

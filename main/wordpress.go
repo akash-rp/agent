@@ -266,3 +266,91 @@ func createDatabase(d db, f *os.File) error {
 
 	return nil
 }
+
+func getPluginAndThemesStatus(c echo.Context) error {
+	user := c.Param("user")
+	name := c.Param("name")
+	plugin, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %[1]s -i /usr/Hosting/wp-cli plugin list --format=json --path='/home/%[1]s/%[2]s/public'", user, name)).CombinedOutput()
+	if err != nil {
+		return c.JSON(404, "Cannot get plugins list")
+	}
+	theme, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %[1]s -i /usr/Hosting/wp-cli theme list --format=json --path='/home/%[1]s/%[2]s/public'", user, name)).Output()
+	if err != nil {
+		return c.JSON(404, "Cannot get themes list")
+	}
+	var plugins []interface{}
+	err = json.Unmarshal(plugin, &plugins)
+	if err != nil {
+		fmt.Println(err)
+		return c.JSON(400, "err")
+	}
+	var themes []interface{}
+	err = json.Unmarshal(theme, &themes)
+	if err != nil {
+		fmt.Println(err)
+		return c.JSON(400, "err")
+	}
+	return c.JSON(200, map[string]interface{}{"plugins": plugins, "themes": themes})
+}
+
+func updatePluginsThemes(c echo.Context) error {
+	user := c.Param("user")
+	name := c.Param("name")
+	var body = new(PluginsThemesOperation)
+	c.Bind(&body)
+	result := make(map[string]int)
+	for _, item := range body.Plugins {
+		switch item.Operation {
+		case "update":
+			_, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %[1]s -i /usr/Hosting/wp-cli plugin update %[3]s --path='/home/%[1]s/%[2]s/public'", user, name, item.Name)).Output()
+			if err != nil {
+				result[item.Name] = 0
+			} else {
+				result[item.Name] = 1
+
+			}
+
+		case "activate":
+			_, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %[1]s -i /usr/Hosting/wp-cli plugin activate %[3]s --path='/home/%[1]s/%[2]s/public'", user, name, item.Name)).Output()
+			if err != nil {
+				result[item.Name] = 0
+			} else {
+				result[item.Name] = 1
+
+			}
+
+		case "deactivate":
+			_, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %[1]s -i /usr/Hosting/wp-cli plugin deactivate %[3]s --path='/home/%[1]s/%[2]s/public'", user, name, item.Name)).Output()
+			if err != nil {
+				result[item.Name] = 0
+			} else {
+				result[item.Name] = 1
+
+			}
+
+		}
+	}
+	for _, item := range body.Themes {
+		switch item.Operation {
+		case "update":
+
+			_, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %[1]s -i /usr/Hosting/wp-cli theme update %[3]s --path='/home/%[1]s/%[2]s/public'", user, name, item.Name)).Output()
+			if err != nil {
+				result[item.Name] = 0
+			} else {
+				result[item.Name] = 1
+
+			}
+
+		case "activate":
+			_, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %[1]s -i /usr/Hosting/wp-cli theme activate %[3]s --path='/home/%[1]s/%[2]s/public'", user, name, item.Name)).Output()
+			if err != nil {
+				result[item.Name] = 0
+			} else {
+				result[item.Name] = 1
+			}
+		}
+	}
+
+	return c.JSON(200, result)
+}

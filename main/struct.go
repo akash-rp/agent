@@ -156,9 +156,9 @@ type Staging struct {
 }
 
 type SyncChanges struct {
-	Method string   `json:"method"`
-	Type   []string `json:"type"`
-	From   struct {
+	// Method string   `json:"method"`
+	Type []string `json:"type"`
+	From struct {
 		Name string `json:"name"`
 		User string `json:"user"`
 		Type string `json:"type"`
@@ -173,8 +173,26 @@ type SyncChanges struct {
 	DbType      string   `json:"dbType"`
 	AllSelected bool     `json:"allSelected"`
 	Tables      []string `json:"tables"`
+	CopyMethod  string   `json:"copyMethod"`
+	Exclude     struct {
+		IsExclude bool     `json:"isexclude"`
+		Files     []string `json:"files"`
+		Folders   []string `json:"folders"`
+	} `json:"exclude"`
+	DeleteDestFiles bool `json:"deleteDestFiles"`
 }
 
 type SSH struct {
 	Key string `json:"key"`
+}
+
+type PluginsThemesOperation struct {
+	Plugins []struct {
+		Name      string `json:"name"`
+		Operation string `json:"operation"`
+	}
+	Themes []struct {
+		Name      string `json:"name"`
+		Operation string `json:"operation"`
+	}
 }

@@ -3,10 +3,8 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os/exec"
 
 	"github.com/labstack/echo/v4"
 )
@@ -84,48 +82,6 @@ func getSites(c echo.Context) error {
 
 func RemoveIndex(s []Site, index int) []Site {
 	return append(s[:index], s[index+1:]...)
-}
-
-func addCert(wp wpcert) error {
-
-	data, _ := ioutil.ReadFile("/usr/Hosting/config.json")
-
-	// json data
-	var obj Config
-
-	// unmarshall it
-	err := json.Unmarshal(data, &obj)
-	if err != nil {
-		return echo.NewHTTPError(400, "JSON data error")
-	}
-
-	for i, site := range obj.Sites {
-		if wp.AppName == site.Name {
-			if wp.Url == site.PrimaryDomain.Url {
-				_, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("service hosting stop; certbot certonly --standalone --dry-run -d %s", wp.Url)).Output()
-				if err != nil {
-					return echo.NewHTTPError(404, "Error with cert config")
-				}
-				_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("certbot certonly --standalone -d %s -m %s --agree-tos --cert-name %s", wp.Url, wp.Email, wp.Url)).Output()
-				if err != nil {
-					return echo.NewHTTPError(404, "Error with cert config after dry run")
-				}
-				obj.SSL = true
-				exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /etc/letsencrypt/live/%s/fullchain.pem /etc/letsencrypt/live/%s/privkey.pem > /opt/Hosting/certs/%s.pem", wp.Url, wp.Url, wp.Url))
-				obj.Sites[i].PrimaryDomain.SSL = true
-				back, _ := json.MarshalIndent(obj, "", "  ")
-				err = ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
-				if err != nil {
-					return echo.NewHTTPError(400, "Cannot write to config file")
-				}
-				configNuster()
-				exec.Command("/bin/bash", "-c", "service hosting start")
-				return nil
-			}
-		}
-	}
-
-	return echo.NewHTTPError(404, "Domain not found with this app")
 }
 
 // define data structure
