@@ -6,12 +6,14 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 )
 
-func cert(c echo.Context) error {
+func certAdd(c echo.Context) error {
 	wp := new(wpcert)
 	c.Bind(&wp)
 
@@ -19,46 +21,51 @@ func cert(c echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err)
 	}
-	return c.String(http.StatusOK, "Success")
+	out, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("certbot certificates --cert-name %s | grep \"Expiry\" | awk '{print $3}'", wp.Url)).Output()
+	return c.JSON(http.StatusOK, strings.TrimSuffix(string(out), "\n"))
 }
 
 func addCert(wp wpcert) error {
 
 	for i, site := range obj.Sites {
 		if wp.AppName == site.Name {
-			if wp.Url == site.PrimaryDomain.Url {
-				_, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("certbot certonly --standalone --dry-run -d %s -m %s --agree-tos --non-interactive --http-01-port=8888 --key-type ecdsa", wp.Url, wp.Email)).Output()
-				if err != nil {
-					return errors.New("error with cert config")
+			switch wp.Type {
+
+			case "primary":
+				if wp.Url == site.PrimaryDomain.Url {
+					_, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("certbot certonly --standalone --dry-run -d %s --agree-tos --non-interactive --http-01-port=8888 --key-type ecdsa", wp.Url)).Output()
+					if err != nil {
+						return errors.New("error with cert config")
+					}
+					_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("certbot certonly --standalone -d %[1]s --agree-tos --cert-name %[1]s --non-interactive --http-01-port=8888 --key-type ecdsa", wp.Url, wp.Url)).Output()
+					if err != nil {
+						return errors.New("error with cert config after dry run")
+					}
+					obj.SSL = true
+					exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /etc/letsencrypt/live/%[1]s/fullchain.pem /etc/letsencrypt/live/%[1]s/privkey.pem > /opt/Hosting/certs/%[1]s.pem", wp.Url)).Output()
+					obj.Sites[i].PrimaryDomain.SSL = true
+					back, _ := json.MarshalIndent(obj, "", "  ")
+					err = ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
+					if err != nil {
+						return errors.New("cannot write to config file")
+					}
+					configNuster()
+					go exec.Command("/bin/bash", "-c", "service hosting restart").Output()
+					return nil
 				}
-				_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("certbot certonly --standalone -d %s -m %s --agree-tos --cert-name %s --non-interactive --http-01-port=8888 --key-type ecdsa", wp.Url, wp.Email, wp.Url)).Output()
-				if err != nil {
-					return errors.New("error with cert config after dry run")
-				}
-				obj.SSL = true
-				exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /etc/letsencrypt/live/%s/fullchain.pem /etc/letsencrypt/live/%s/privkey.pem > /opt/Hosting/certs/%s.pem", wp.Url, wp.Url, wp.Url)).Output()
-				obj.Sites[i].PrimaryDomain.SSL = true
-				back, _ := json.MarshalIndent(obj, "", "  ")
-				err = ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
-				if err != nil {
-					return errors.New("cannot write to config file")
-				}
-				configNuster()
-				go exec.Command("/bin/bash", "-c", "service hosting restart").Output()
-				return nil
-			} else {
+			case "alias":
 				for j, Domain := range site.AliasDomain {
 					if wp.Url == Domain.Url {
-						_, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("certbot certonly --standalone --dry-run -d %s -m %s --agree-tos --non-interactive --http-01-port=8888", wp.Url, wp.Email)).Output()
+						_, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("certbot certonly --standalone --dry-run -d %s --agree-tos --non-interactive --http-01-port=8888", wp.Url)).Output()
 						if err != nil {
 							return errors.New("error with cert config")
 						}
-						_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("certbot certonly --standalone -d %s -m %s --agree-tos --cert-name %s --non-interactive --http-01-port=8888", wp.Url, wp.Email, wp.Url)).Output()
+						_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("certbot certonly --standalone -d %[1]s --agree-tos --cert-name %[1]s --non-interactive --http-01-port=8888", wp.Url)).Output()
 						if err != nil {
 							return errors.New("error with cert config after dry run")
 						}
 						obj.SSL = true
-						exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /etc/letsencrypt/live/%s/fullchain.pem /etc/letsencrypt/live/%s/privkey.pem > /opt/Hosting/certs/%s.pem", wp.Url, wp.Url, wp.Url)).Output()
+						exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /etc/letsencrypt/live/%[1]s/fullchain.pem /etc/letsencrypt/live/%[1]s/privkey.pem > /opt/Hosting/certs/%[1]s.pem", wp.Url)).Output()
 						obj.Sites[i].AliasDomain[j].SSL = true
 						back, _ := json.MarshalIndent(obj, "", "  ")
 						err = ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
@@ -75,4 +82,46 @@ func addCert(wp wpcert) error {
 	}
 
 	return errors.New("Domain not found with this app")
+}
+
+func enforceHttps(c echo.Context) error {
+	data := new(EnforceHttps)
+	c.Bind(data)
+	var found bool = false
+	var operation bool
+	if data.Operation == "enable" {
+		operation = true
+	} else {
+		operation = false
+	}
+	for i, site := range obj.Sites {
+		if site.Name == data.Name {
+			obj.Sites[i].EnforceHttps = operation
+			found = true
+			if operation {
+
+				htaccess, _ := os.OpenFile(fmt.Sprintf("/home/%s/%s/public/.htaccess", site.User, site.Name), os.O_APPEND|os.O_RDWR|os.O_CREATE, 0644)
+				htaccess.Write([]byte(`
+				#START HOSTING ENFORCE HTTPS
+				RewriteEngine On
+				RewriteCond %{HTTPS} off
+				RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+				#END HOSTING ENFORCE HTTPS
+				`))
+				htaccess.Close()
+			} else {
+				exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i '/#START HOSTING ENFORCE HTTPS/,/#END HOSTING ENFORCE HTTPS/d' /home/%s/%s/public/.htaccess", site.User, site.Name)).Output()
+			}
+			back, _ := json.MarshalIndent(obj, "", "  ")
+			err := ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
+			if err != nil {
+				return c.JSON(404, "cannot write to config file")
+			}
+			go exec.Command("/bin/bash", "-c", "service lsws restart").Output()
+		}
+	}
+	if !found {
+		return c.JSON(404, "site not found")
+	}
+	return c.JSON(200, "success")
 }

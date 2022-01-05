@@ -43,7 +43,7 @@ type wpdelete struct {
 type wpcert struct {
 	AppName string `json:"appName"`
 	Url     string `json:"url"`
-	Email   string `json:"email"`
+	Type    string `json:"domainType"`
 }
 
 type errcode struct {
@@ -111,6 +111,7 @@ type Site struct {
 	Cache         string   `json:"cache"`
 	LocalBackup   Backup   `json:"localBackup"`
 	Type          string   `json:"type"`
+	EnforceHttps  bool     `json:"enforceHttps"`
 }
 
 type Config struct {
@@ -195,4 +196,9 @@ type PluginsThemesOperation struct {
 		Name      string `json:"name"`
 		Operation string `json:"operation"`
 	}
+}
+
+type EnforceHttps struct {
+	Operation string `json:"operation"`
+	Name      string `json:"name"`
 }

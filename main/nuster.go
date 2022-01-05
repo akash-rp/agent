@@ -36,11 +36,11 @@ global
 	user hosting
 	group hosting
 	chroot /var/lib/hosting
-	log /dev/log/ local0`, obj.Global.Datasize, obj.Global.Maxconn)
+	log /dev/log local0`, obj.Global.Datasize, obj.Global.Maxconn)
 
 	conf = conf + `
 defaults
-	log /dev/log/ local0
+	log /dev/log local0
 	option httplog
 	mode http
 `

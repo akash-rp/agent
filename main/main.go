@@ -37,7 +37,7 @@ func main() {
 	e.POST("/wp/add", wpAdd)
 	e.POST("/wp/delete", wpDelete)
 	e.GET("/hositng", hosting)
-	e.POST("/cert", cert)
+	e.POST("/cert/add", certAdd)
 	e.GET("/sites", getSites)
 	e.POST("/domainedit", editDomain)
 	e.POST("/changeprimary", changePrimary)
@@ -58,6 +58,7 @@ func main() {
 	e.POST("/removeSSH/:user", removeSSHkey)
 	e.GET("/ptlist/:user/:name", getPluginAndThemesStatus)
 	e.POST("/ptoperation/:user/:name", updatePluginsThemes)
+	e.POST("/enforceHttps", enforceHttps)
 	e.Logger.Fatal(e.Start(":8081"))
 }
 
