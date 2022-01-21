@@ -44,6 +44,7 @@ type wpcert struct {
 	AppName string `json:"appName"`
 	Url     string `json:"url"`
 	Type    string `json:"domainType"`
+	Email   string `json:"email"`
 }
 
 type errcode struct {

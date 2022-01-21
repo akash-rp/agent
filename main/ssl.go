@@ -19,7 +19,7 @@ func certAdd(c echo.Context) error {
 
 	err := addCert(*wp)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, err)
+		return c.JSON(http.StatusBadRequest, err.Error())
 	}
 	out, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("certbot certificates --cert-name %s | grep \"Expiry\" | awk '{print $3}'", wp.Url)).Output()
 	return c.JSON(http.StatusOK, strings.TrimSuffix(string(out), "\n"))
@@ -33,11 +33,11 @@ func addCert(wp wpcert) error {
 
 			case "primary":
 				if wp.Url == site.PrimaryDomain.Url {
-					_, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("certbot certonly --standalone --dry-run -d %s --agree-tos --non-interactive --http-01-port=8888 --key-type ecdsa", wp.Url)).Output()
+					_, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("certbot certonly --standalone --dry-run -d %s --agree-tos --email %[2]s --non-interactive --http-01-port=8888 --key-type ecdsa", wp.Url, wp.Email)).Output()
 					if err != nil {
 						return errors.New("error with cert config")
 					}
-					_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("certbot certonly --standalone -d %[1]s --agree-tos --cert-name %[1]s --non-interactive --http-01-port=8888 --key-type ecdsa", wp.Url, wp.Url)).Output()
+					_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("certbot certonly --standalone -d %[1]s --agree-tos --email %[2]s --cert-name %[1]s --non-interactive --http-01-port=8888 --key-type ecdsa", wp.Url, wp.Email)).Output()
 					if err != nil {
 						return errors.New("error with cert config after dry run")
 					}
@@ -56,11 +56,11 @@ func addCert(wp wpcert) error {
 			case "alias":
 				for j, Domain := range site.AliasDomain {
 					if wp.Url == Domain.Url {
-						_, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("certbot certonly --standalone --dry-run -d %s --agree-tos --non-interactive --http-01-port=8888", wp.Url)).Output()
+						_, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("certbot certonly --standalone --dry-run -d %[1]s --email %[2]s --agree-tos --non-interactive --http-01-port=8888", wp.Url, wp.Email)).Output()
 						if err != nil {
 							return errors.New("error with cert config")
 						}
-						_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("certbot certonly --standalone -d %[1]s --agree-tos --cert-name %[1]s --non-interactive --http-01-port=8888", wp.Url)).Output()
+						_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("certbot certonly --standalone -d %[1]s --agree-tos --email %[2]s --cert-name %[1]s --non-interactive --http-01-port=8888", wp.Url, wp.Email)).Output()
 						if err != nil {
 							return errors.New("error with cert config after dry run")
 						}
