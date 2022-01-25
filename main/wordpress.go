@@ -185,15 +185,6 @@ func wpAdd(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, result)
 	}
 
-	err = configNuster()
-	if err != nil {
-		result := &errcode{
-			Code:    110,
-			Message: "Error occured while configuring nuster",
-		}
-		return c.JSON(http.StatusBadRequest, result)
-	}
-	exec.Command("/bin/bash", "-c", "service hosting restart").Output()
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("mkdir -p /var/log/hosting/%s", wp.AppName)).Output()
 	return c.JSON(http.StatusOK, dbCred)
 
@@ -228,9 +219,6 @@ func wpDelete(c echo.Context) error {
 		go exec.Command("/bin/bash", "-c", "killall lsphp").Output()
 		go exec.Command("/bin/bash", "-c", "service lsws restart").Output()
 
-		configNuster()
-
-		go exec.Command("/bin/bash", "-c", "service hosting restart").Output()
 	}
 
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i '/%s\\/%s/d' /etc/incron.d/sites.txt", wp.Main.User, wp.Main.Name)).Output()

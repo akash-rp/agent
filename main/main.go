@@ -31,12 +31,10 @@ func main() {
 		log.Fatal("Cannot read file")
 	}
 	json.Unmarshal(data, &obj)
-	configNuster()
 	initCron()
 	e.GET("/serverstats", serverStats)
 	e.POST("/wp/add", wpAdd)
 	e.POST("/wp/delete", wpDelete)
-	e.GET("/hositng", hosting)
 	e.POST("/cert/add", certAdd)
 	e.GET("/sites", getSites)
 	e.POST("/domainedit", editDomain)
@@ -87,13 +85,4 @@ func serverStats(c echo.Context) error {
 		Os:          strings.TrimSuffix(string(os), "\n"),
 	}
 	return c.JSON(http.StatusOK, m)
-}
-
-func hosting(c echo.Context) error {
-	err := configNuster()
-	if err != nil {
-		return err
-	}
-	go exec.Command("/bin/bash", "-c", "service hosting restart").Output()
-	return c.String(http.StatusOK, "Success")
 }

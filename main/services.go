@@ -7,6 +7,6 @@ import (
 )
 
 func getServiceStatus(c echo.Context) error {
-	exec.Command("/bin/bash", "-c", "systemctl check hosting lsws mariadb")
+	exec.Command("/bin/bash", "-c", "systemctl check lsws mariadb")
 	return nil
 }

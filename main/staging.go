@@ -112,11 +112,9 @@ func createStaging(c echo.Context) error {
 		LogError(logFile, "Failed to add site", out, "Staging")
 		return c.JSON(echo.ErrBadRequest.Code, "Failed to add site to proxy")
 	}
-	configNuster()
 	logFile.Write([]byte("Staging process completed\n"))
 	logFile.Close()
 	go exec.Command("/bin/bash", "-c", "service lsws restart").Output()
-	go exec.Command("/bin/bash", "-c", "service hosting restart").Output()
 	return c.JSON(200, "Success")
 }
 
@@ -410,10 +408,7 @@ func deleteStagingSiteInternal(name string, user string) error {
 	go exec.Command("/bin/bash", "-c", "killall lsphp").Output()
 	go exec.Command("/bin/bash", "-c", "service lsws restart").Output()
 
-	configNuster()
-
 	// exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i '/%s\\/%s/d' /etc/incron.d/sites.txt", user, name)).Output()
-	go exec.Command("/bin/bash", "-c", "service hosting restart").Output()
 	return nil
 }
 

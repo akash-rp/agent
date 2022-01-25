@@ -49,8 +49,7 @@ func addCert(wp wpcert) error {
 					if err != nil {
 						return errors.New("cannot write to config file")
 					}
-					configNuster()
-					go exec.Command("/bin/bash", "-c", "service hosting restart").Output()
+
 					return nil
 				}
 			case "alias":
@@ -72,8 +71,7 @@ func addCert(wp wpcert) error {
 						if err != nil {
 							return errors.New("cannot write to config file")
 						}
-						configNuster()
-						go exec.Command("/bin/bash", "-c", "service hosting restart").Output()
+
 						return nil
 					}
 				}

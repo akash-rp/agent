@@ -17,7 +17,7 @@ func editLsws(wp wpadd) error {
 		`
 virtualhost %s {
     vhRoot /home/%s/%s/
-    listeners Default
+    listeners wordpress, wordpressssl
     configFile $SERVER_ROOT/conf/vhosts/%s.d/main.conf
     allowSymbolLink 1
     enableScript 1
@@ -103,7 +103,7 @@ autoLoadHtaccess 1
 	third := fmt.Sprintf(`
 extprocessor lsphp_%s {
 type lsapi
-address uds://tmp/lshttpd/lsphp-%s.sock
+address uds://tmp/lsws/lsphp-%s.sock
 maxConns 35
 env PHP_LSAPI_MAX_REQUESTS=5000
 env PHP_LSAPI_CHILDREN=35

@@ -56,19 +56,11 @@ func editDomain(c echo.Context) error {
 	siteString := strings.Join(siteArray, ",")
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i '/^#/!s/VhDomain.*/VhDomain %s/' %s", siteString, path)).Output()
 
-	go exec.Command("/bin/bash", "-c", "service lshttpd restart").Output()
+	go exec.Command("/bin/bash", "-c", "service lsws restart").Output()
 
 	back, _ := json.MarshalIndent(obj, "", "  ")
 	ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
-	err := configNuster()
-	if err != nil {
-		result := &errcode{
-			Code:    110,
-			Message: "Error occured while configuring nuster",
-		}
-		return c.JSON(http.StatusBadRequest, result)
-	}
-	go exec.Command("/bin/bash", "-c", "service hosting restart").Output()
+
 	return c.String(http.StatusOK, "success")
 }
 
