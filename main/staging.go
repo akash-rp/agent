@@ -99,9 +99,9 @@ func createStaging(c echo.Context) error {
 		LogError(logFile, "Failed to modify DB_PASSWORD", out, "Staging")
 		return c.JSON(echo.ErrBadRequest.Code, "Failed to modify wp-config")
 	}
-	lsws := wpadd{AppName: Name + "_Staging", UserName: User, Url: Url}
+	lsws := wpadd{AppName: Name + "_Staging", UserName: User, Domain: Domain{Url: Url}}
 	logFile.Write([]byte("Adding site to openlitespeed vhosts\n"))
-	err = editLsws(lsws)
+	err = addNewSite(lsws)
 	if err != nil {
 		LogError(logFile, "Failed to add vhost", out, "Staging")
 		return c.JSON(echo.ErrBadRequest.Code, "Failed to add vhost")

@@ -33,11 +33,11 @@ func addCert(wp wpcert) error {
 
 			case "primary":
 				if wp.Url == site.PrimaryDomain.Url {
-					_, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("certbot certonly --standalone --dry-run -d %s --agree-tos --email %[2]s --non-interactive --http-01-port=8888 --key-type ecdsa", wp.Url, wp.Email)).Output()
+					_, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("/root/.acme.sh/acme.sh ", wp.Url)).Output()
 					if err != nil {
 						return errors.New("error with cert config")
 					}
-					_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("certbot certonly --standalone -d %[1]s --agree-tos --email %[2]s --cert-name %[1]s --non-interactive --http-01-port=8888 --key-type ecdsa", wp.Url, wp.Email)).Output()
+					_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("certbot certonly --standalone -d %[1]s --agree-tos --email--cert-name %[1]s --non-interactive --http-01-port=8888 --key-type ecdsa", wp.Url)).Output()
 					if err != nil {
 						return errors.New("error with cert config after dry run")
 					}
@@ -55,11 +55,11 @@ func addCert(wp wpcert) error {
 			case "alias":
 				for j, Domain := range site.AliasDomain {
 					if wp.Url == Domain.Url {
-						_, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("certbot certonly --standalone --dry-run -d %[1]s --email %[2]s --agree-tos --non-interactive --http-01-port=8888", wp.Url, wp.Email)).Output()
+						_, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("certbot certonly --standalone --dry-run -d %[1]s --email  --agree-tos --non-interactive --http-01-port=8888", wp.Url)).Output()
 						if err != nil {
 							return errors.New("error with cert config")
 						}
-						_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("certbot certonly --standalone -d %[1]s --agree-tos --email %[2]s --cert-name %[1]s --non-interactive --http-01-port=8888", wp.Url, wp.Email)).Output()
+						_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("certbot certonly --standalone -d %[1]s --agree-tos --email  --cert-name %[1]s --non-interactive --http-01-port=8888", wp.Url)).Output()
 						if err != nil {
 							return errors.New("error with cert config after dry run")
 						}
@@ -122,4 +122,8 @@ func enforceHttps(c echo.Context) error {
 		return c.JSON(404, "site not found")
 	}
 	return c.JSON(200, "success")
+}
+
+func ping(c echo.Context) error {
+	return c.JSON(200, "{'status':'success'}")
 }

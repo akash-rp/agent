@@ -14,7 +14,7 @@ type systemstats struct {
 type wpadd struct {
 	AppName       string `json:"appName"`
 	UserName      string `json:"userName"`
-	Url           string `json:"url"`
+	Domain        Domain `json:"domain"`
 	Title         string `json:"title"`
 	AdminUser     string `json:"adminUser"`
 	AdminPassword string `json:"adminPassword"`
@@ -41,10 +41,19 @@ type wpdelete struct {
 }
 
 type wpcert struct {
-	AppName string `json:"appName"`
-	Url     string `json:"url"`
-	Type    string `json:"domainType"`
-	Email   string `json:"email"`
+	AppName     string  `json:"appName"`
+	Url         string  `json:"url"`
+	Type        string  `json:"domainType"`
+	IsSubdomain string  `json:"isSubdomain"`
+	SslConf     sslConf `json:"sslConf"`
+}
+
+type sslConf struct {
+	IsWildcard string `json:"isWildcard"`
+	Type       string `json:"type"`
+	KeyType    string `json:"keyType"`
+	CustomKey  string `json:"customKey"`
+	CustomCert string `json:"CustomCert"`
 }
 
 type errcode struct {
@@ -52,9 +61,21 @@ type errcode struct {
 	Message string `json:"message"`
 }
 
-type DomainEdit struct {
-	Name string `json:"name"`
-	Site Site   `json:"site"`
+// type DomainEdit struct {
+// 	Name string `json:"name"`
+// 	Site Site   `json:"site"`
+// }
+
+type Domain struct {
+	Url         string `json:"url"`
+	IsSubdomain bool   `json:"isSubDomain"`
+	Routing     string `json:"routing"`
+	IsWildcard  bool   `json:"isWildcard"`
+}
+
+type DomainConf struct {
+	Domain   Domain `json:"domain"`
+	SiteName string `json:"site"`
 }
 
 type PrimaryChange struct {
@@ -105,15 +126,21 @@ type Default struct {
 }
 
 type Site struct {
-	Name          string   `json:"name"`
-	User          string   `json:"user"`
-	PrimaryDomain Domain   `json:"primaryDomain"`
-	AliasDomain   []Domain `json:"aliasDomain"`
-	Cache         string   `json:"cache"`
-	LocalBackup   Backup   `json:"localBackup"`
-	Type          string   `json:"type"`
-	EnforceHttps  bool     `json:"enforceHttps"`
+	Name          string       `json:"name"`
+	User          string       `json:"user"`
+	PrimaryDomain DomainJSON   `json:"primaryDomain"`
+	AliasDomain   []DomainJSON `json:"aliasDomain"`
+	Cache         string       `json:"cache"`
+	LocalBackup   Backup       `json:"localBackup"`
+	Type          string       `json:"type"`
+	EnforceHttps  bool         `json:"enforceHttps"`
 }
+
+// type NewRelic struct {
+// 	Status  string `json:"status"`
+// 	AppName string `json:"appname"`
+// 	Key     string `json:"key"`
+// }
 
 type Config struct {
 	Global  Global  `json:"global"`
@@ -122,7 +149,7 @@ type Config struct {
 	SSL     bool    `json:"ssl"`
 }
 
-type Domain struct {
+type DomainJSON struct {
 	Url      string `json:"url"`
 	SSL      bool   `json:"ssl"`
 	WildCard bool   `json:"wildcard"`

@@ -37,7 +37,8 @@ func main() {
 	e.POST("/wp/delete", wpDelete)
 	e.POST("/cert/add", certAdd)
 	e.GET("/sites", getSites)
-	e.POST("/domainedit", editDomain)
+	e.POST("/domain/add", addDomain)
+	e.POST("/domain/delete", deleteDomain)
 	e.POST("/changeprimary", changePrimary)
 	e.POST("/changePHP", changePHP)
 	e.GET("/getPHPini/:name", getPHPini)
@@ -57,6 +58,12 @@ func main() {
 	e.GET("/ptlist/:user/:name", getPluginAndThemesStatus)
 	e.POST("/ptoperation/:user/:name", updatePluginsThemes)
 	e.POST("/enforceHttps", enforceHttps)
+	e.POST("/update7G", update7G)
+	e.POST("/updateModsecurity", updateModsecurity)
+	e.POST("/newrelic/enable", enabelNewrelic)
+	e.POST("/newrelic/enableSite", enabelNewrelicPerSite)
+	e.POST("/newrelic/disable", disableNewrelic)
+	e.POST("/newrelic/disableSite", disableNewrelicPerSite)
 	e.Logger.Fatal(e.Start(":8081"))
 }
 

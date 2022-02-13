@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io/ioutil"
+	"log"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -25,9 +26,11 @@ func addSiteToJSON(wp wpadd, siteType string) error {
 	// 	return echo.NewHTTPError(400, "JSON data error")
 	// }
 	newSite := Site{Name: wp.AppName, Cache: "off", User: wp.UserName, Type: siteType}
-	newSite.AliasDomain = []Domain{}
+	newSite.AliasDomain = []DomainJSON{}
 
-	newSite.PrimaryDomain = Domain{Url: wp.Url, SSL: false, WildCard: false}
+	newSite.PrimaryDomain = DomainJSON{Url: wp.Domain.Url, SSL: false, WildCard: false}
+	log.Print(newSite)
+	log.Print("Adding to JSON SITE")
 	obj.Sites = append(obj.Sites, newSite)
 	back, _ := json.MarshalIndent(obj, "", "  ")
 	ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)

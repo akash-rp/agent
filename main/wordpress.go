@@ -24,7 +24,8 @@ func wpAdd(c echo.Context) error {
 	}
 
 	// Check if all fields are defind
-	if wp.AppName == "" || wp.Url == "" || wp.UserName == "" || wp.Title == "" || wp.AdminEmail == "" || wp.AdminPassword == "" || wp.AdminUser == "" {
+	if wp.AppName == "" || wp.Domain.Url == "" || wp.UserName == "" || wp.Title == "" || wp.AdminEmail == "" || wp.AdminPassword == "" || wp.AdminUser == "" {
+		log.Print(wp)
 		result := &errcode{
 			Code:    101,
 			Message: "Required fields are not defined",
@@ -89,6 +90,12 @@ func wpAdd(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, result)
 	}
 	path = path + "/public"
+	var url string
+	if wp.Domain.Routing == "www" {
+		url = "www." + wp.Domain.Url
+	} else {
+		url = wp.Domain.Url
+	}
 	// Download wordpress
 	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %s -i -- /usr/Hosting/wp-cli core download --path=%s", wp.UserName, path)).CombinedOutput()
 	if err != nil {
@@ -153,7 +160,7 @@ func wpAdd(c echo.Context) error {
 	`))
 	phpfile.Close()
 	// Install wordpress with data provided by request
-	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %s -i -- /usr/Hosting/wp-cli core install --path=%s --url=%s --title=%s --admin_user=%s --admin_password=%s --admin_email=%s", wp.UserName, path, wp.Url, wp.Title, wp.AdminUser, wp.AdminPassword, wp.AdminEmail)).CombinedOutput()
+	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %s -i -- /usr/Hosting/wp-cli core install --path=%s --url=%s --title=%s --admin_user=%s --admin_password=%s --admin_email=%s", wp.UserName, path, url, wp.Title, wp.AdminUser, wp.AdminPassword, wp.AdminEmail)).CombinedOutput()
 
 	if err != nil {
 		write, _ := json.MarshalIndent(dbCred, "", "  ")
@@ -166,11 +173,11 @@ func wpAdd(c echo.Context) error {
 		}
 		return c.JSON(http.StatusBadRequest, result)
 	}
-	err = editLsws(*wp)
+	err = addNewSite(*wp)
 	if err != nil {
 		result := &errcode{
 			Code:    108,
-			Message: "Edit lsws error",
+			Message: err.Error(),
 		}
 		return c.JSON(http.StatusBadRequest, result)
 	}
@@ -186,7 +193,10 @@ func wpAdd(c echo.Context) error {
 	}
 
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("mkdir -p /var/log/hosting/%s", wp.AppName)).Output()
-	return c.JSON(http.StatusOK, dbCred)
+	db := make(map[string]string)
+	db["name"] = dbCred.Name
+	db["user"] = dbCred.User
+	return c.JSON(http.StatusOK, db)
 
 }
 

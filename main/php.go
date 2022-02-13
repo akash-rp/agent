@@ -26,7 +26,10 @@ func changePHP(c echo.Context) error {
 func getPHPini(c echo.Context) error {
 	name := c.Param("name")
 	path := fmt.Sprintf("/usr/local/lsws/php-ini/%s/php.ini", name)
-	cfg, _ := ini.Load(path)
+	cfg, err := ini.Load(path)
+	if err != nil {
+		return c.JSON(400, "File not found")
+	}
 	var php PHP
 	cfg.Section("PHP").MapTo(&php)
 	return c.JSON(http.StatusOK, php)
