@@ -62,8 +62,14 @@ func main() {
 	e.POST("/updateModsecurity", updateModsecurity)
 	e.POST("/newrelic/enable", enabelNewrelic)
 	e.POST("/newrelic/enableSite", enabelNewrelicPerSite)
-	e.POST("/newrelic/disable", disableNewrelic)
+	e.POST("/newrelic/disable", disableNewrelicRequest)
 	e.POST("/newrelic/disableSite", disableNewrelicPerSite)
+	e.GET("/service/status", getServiceStatus)
+	e.POST("/service/restart/:service", serviceRestart)
+	e.POST("/service/stop/:service", serviceStop)
+	e.POST("/service/start/:service", serviceStart)
+	e.POST("/geoip/enable/:site", enableGeoip)
+	e.POST("/geoip/disable/:site", disableGeoip)
 	e.Logger.Fatal(e.Start(":8081"))
 }
 

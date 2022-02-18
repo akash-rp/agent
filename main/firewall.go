@@ -21,7 +21,7 @@ func update7G(c echo.Context) error {
 	switch conf.Status {
 	case "enable":
 		exec.Command("/bin/bash", "-c", fmt.Sprintf("cp /usr/Hosting/firewall/7g/rewrite.conf %s", path)).Output()
-		exec.Command("/bin/bash", "-c", fmt.Sprintf("cp /usr/Hosting/firewall/7g/7G_log.php /home/%s/%s/public/7g_log.php", conf.User, conf.App)).Output()
+		exec.Command("/bin/bash", "-c", fmt.Sprintf("cp /usr/Hosting/firewall/7g/7G_log.php /home/%s/%s/public/7G_log.php", conf.User, conf.App)).Output()
 		for _, part := range conf.Disable {
 			switch part {
 			case "query":

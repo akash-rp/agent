@@ -151,7 +151,7 @@ func addMainConf(wp wpadd) error {
 
 	docRoot $VH_ROOT/public/	
 	enableGzip 1
-	enableIpGeo 1
+	enableIpGeo 0
 
 	errorlog /var/log/hosting/%[2]s/lsws_error.log {
 		useServer 0

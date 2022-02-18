@@ -4,11 +4,16 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"time"
 
 	"github.com/labstack/echo/v4"
 )
 
 func enabelNewrelic(c echo.Context) error {
+	conf := new(struct {
+		Duration int `json:"duration"`
+	})
+	c.Bind(&conf)
 	exec.Command("/bin/bash", "-c", "mv /usr/local/lsws/lsphp74/etc/php/7.4/mods-available/newrelic /usr/local/lsws/lsphp74/etc/php/7.4/mods-available/newrelic.ini").Output()
 	exec.Command("/bin/bash", "-c", "mv /usr/local/lsws/lsphp73/etc/php/7.3/mods-available/newrelic /usr/local/lsws/lsphp73/etc/php/7.3/mods-available/newrelic.ini").Output()
 	exec.Command("/bin/bash", "-c", "mv /usr/local/lsws/lsphp72/etc/php/7.2/mods-available/newrelic /usr/local/lsws/lsphp72/etc/php/7.2/mods-available/newrelic.ini").Output()
@@ -16,10 +21,22 @@ func enabelNewrelic(c echo.Context) error {
 	exec.Command("/bin/bash", "-c", "service newrelic-daemon start").Output()
 	exec.Command("/bin/bash", "-c", "service lsws reload").Output()
 	exec.Command("/bin/bash", "-c", "killall lsphp").Output()
+	if conf.Duration > 0 {
+
+		cronInt.Every(1).Day().StartAt(time.Now().Add(time.Hour * time.Duration(conf.Duration))).LimitRunsTo(1).Tag("Newrelic").Do(func() {
+			disableNewrelic()
+		})
+	}
 	return c.JSON(200, "success")
 }
 
-func disableNewrelic(c echo.Context) error {
+func disableNewrelicRequest(c echo.Context) error {
+	disableNewrelic()
+	return c.JSON(200, "success")
+}
+
+func disableNewrelic() {
+	cronInt.RemoveByTag("Newrelic")
 	exec.Command("/bin/bash", "-c", "mv /usr/local/lsws/lsphp74/etc/php/7.4/mods-available/newrelic.ini /usr/local/lsws/lsphp74/etc/php/7.4/mods-available/newrelic").Output()
 	exec.Command("/bin/bash", "-c", "mv /usr/local/lsws/lsphp73/etc/php/7.3/mods-available/newrelic.ini /usr/local/lsws/lsphp73/etc/php/7.3/mods-available/newrelic").Output()
 	exec.Command("/bin/bash", "-c", "mv /usr/local/lsws/lsphp72/etc/php/7.2/mods-available/newrelic.ini /usr/local/lsws/lsphp72/etc/php/7.2/mods-available/newrelic").Output()
@@ -27,7 +44,6 @@ func disableNewrelic(c echo.Context) error {
 	exec.Command("/bin/bash", "-c", "service newrelic-daemon stop").Output()
 	exec.Command("/bin/bash", "-c", "service lsws reload").Output()
 	exec.Command("/bin/bash", "-c", "killall lsphp").Output()
-	return c.JSON(200, "success")
 }
 
 func enabelNewrelicPerSite(c echo.Context) error {
