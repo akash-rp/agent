@@ -1,129 +1,224 @@
 package main
 
 import (
-	"encoding/json"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
-	"strings"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
-func certAdd(c echo.Context) error {
-	wp := new(wpcert)
-	c.Bind(&wp)
+func addSslCert(c echo.Context) error {
+	conf := new(sslConf)
+	c.Bind(&conf)
+	switch conf.SslMethod {
+	case "webroot":
+		err := webroot(*conf, "new")
+		if err != nil {
+			return c.JSON(400, err.Error())
+		}
+		return c.JSON(200, "Success")
 
-	err := addCert(*wp)
+	}
+	return c.JSON(400, "Something went wrong")
+}
+
+func reissueSslCert(c echo.Context) error {
+	conf := new(sslConf)
+	c.Bind(&conf)
+	switch conf.SslMethod {
+	case "webroot":
+		err := webroot(*conf, "reissue")
+		if err != nil {
+			return c.JSON(400, err.Error())
+		}
+		return c.JSON(200, "success")
+	}
+	return c.JSON(400, "Something went wrong")
+}
+
+func resolveDomain(conf sslConf) (Domain string, FolderName string) {
+	id := uuid.New()
+	Domain = ""
+	FolderName = ""
+	FolderSet := false
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: tr}
+	ioutil.WriteFile(fmt.Sprintf("/home/%s/%s/public/.sslresolve", conf.User, conf.App), []byte(id.String()), 0744)
+	res, err := client.Get(fmt.Sprintf("http://%s/.sslresolve", conf.Domain))
+	if err == nil {
+		FolderName = conf.Domain
+		FolderSet = true
+		body, _ := ioutil.ReadAll(res.Body)
+		if string(body) == id.String() {
+			Domain = "-d " + conf.Domain
+		}
+	}
+	time.Sleep(1 * time.Second)
+	id = uuid.New()
+	ioutil.WriteFile(fmt.Sprintf("/home/%s/%s/public/.sslresolve", conf.User, conf.App), []byte(id.String()), 0744)
+	res, err = client.Get(fmt.Sprintf("http://www.%s/.sslresolve", conf.Domain))
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, err.Error())
+		return Domain, FolderName
 	}
-	out, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("certbot certificates --cert-name %s | grep \"Expiry\" | awk '{print $3}'", wp.Url)).Output()
-	return c.JSON(http.StatusOK, strings.TrimSuffix(string(out), "\n"))
+	body, _ := ioutil.ReadAll(res.Body)
+	if string(body) == id.String() {
+		if !FolderSet {
+			FolderName = "www." + conf.Domain
+		}
+		Domain = Domain + " -d " + "www." + conf.Domain
+	}
+	return Domain, FolderName
 }
 
-func addCert(wp wpcert) error {
+func configureDomainForSSl(conf sslConf, FolderName string) {
+	file, _ := os.OpenFile(fmt.Sprintf("/usr/local/lsws/conf/vhosts/%s.d/domain/%s.conf", conf.App, conf.Domain), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0750)
+	file.Write([]byte(fmt.Sprintf(`
+# Editing this file manually might change litespeed behavior,
+# Make sure you know what are you doing
+virtualhost %[1]s {
+  listeners http, https
 
-	for i, site := range obj.Sites {
-		if wp.AppName == site.Name {
-			switch wp.Type {
+  vhDomain                  %[1]s
 
-			case "primary":
-				if wp.Url == site.PrimaryDomain.Url {
-					_, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("/root/.acme.sh/acme.sh ", wp.Url)).Output()
-					if err != nil {
-						return errors.New("error with cert config")
-					}
-					_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("certbot certonly --standalone -d %[1]s --agree-tos --email--cert-name %[1]s --non-interactive --http-01-port=8888 --key-type ecdsa", wp.Url)).Output()
-					if err != nil {
-						return errors.New("error with cert config after dry run")
-					}
-					obj.SSL = true
-					exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /etc/letsencrypt/live/%[1]s/fullchain.pem /etc/letsencrypt/live/%[1]s/privkey.pem > /opt/Hosting/certs/%[1]s.pem", wp.Url)).Output()
-					obj.Sites[i].PrimaryDomain.SSL = true
-					back, _ := json.MarshalIndent(obj, "", "  ")
-					err = ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
-					if err != nil {
-						return errors.New("cannot write to config file")
-					}
+  rewrite  {
+    enable                  1
+    autoLoadHtaccess        1
 
-					return nil
-				}
-			case "alias":
-				for j, Domain := range site.AliasDomain {
-					if wp.Url == Domain.Url {
-						_, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("certbot certonly --standalone --dry-run -d %[1]s --email  --agree-tos --non-interactive --http-01-port=8888", wp.Url)).Output()
-						if err != nil {
-							return errors.New("error with cert config")
+    RewriteCond %%{HTTP:CF-Visitor} '"scheme":"http"' [OR]
+    RewriteCond %%{HTTPS} !=on
+    RewriteRule ^(.*)$ - [env=proto:http]
+    RewriteCond %%{HTTP:CF-Visitor} '"scheme":"https"' [OR]
+    RewriteCond %%{HTTPS} =on
+    RewriteRule ^(.*)$ - [env=proto:https]
+
+    # Redirect http -> https
+    RewriteCond %%{HTTPS} off
+    RewriteRule (.*) https://%[1]s%%{REQUEST_URI} [R=301,L]
+
+  }
+
+  vhssl {
+    keyFile                 /usr/local/lsws/certs/%[2]s/%[2]s.key
+    certFile                /usr/local/lsws/certs/%[2]s/%[2]s.key
+    certChain               1
+    enableECDHE             1
+    enableStapling          1
+    ocspRespMaxAge          86400
+  }
+
+  include /usr/local/lsws/conf/vhosts/%[3]s.d/main.conf
+}`, conf.Domain, FolderName, conf.App)))
+	file.Close()
+	go exec.Command("/bin/bash", "-c", "service lsws reload").Output()
+}
+
+func webroot(conf sslConf, procedure string) error {
+	ExisitingFolderName := ""
+	if procedure == "reissue" {
+		for _, site := range obj.Sites {
+			if site.Name == conf.App {
+				if site.PrimaryDomain.Url == conf.Domain {
+					ExisitingFolderName = site.PrimaryDomain.SSL.FolderName
+					break
+				} else {
+					for _, alias := range site.AliasDomain {
+						if alias.Url == conf.Domain {
+							ExisitingFolderName = alias.SSL.FolderName
+							break
 						}
-						_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("certbot certonly --standalone -d %[1]s --agree-tos --email  --cert-name %[1]s --non-interactive --http-01-port=8888", wp.Url)).Output()
-						if err != nil {
-							return errors.New("error with cert config after dry run")
-						}
-						obj.SSL = true
-						exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /etc/letsencrypt/live/%[1]s/fullchain.pem /etc/letsencrypt/live/%[1]s/privkey.pem > /opt/Hosting/certs/%[1]s.pem", wp.Url)).Output()
-						obj.Sites[i].AliasDomain[j].SSL = true
-						back, _ := json.MarshalIndent(obj, "", "  ")
-						err = ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
-						if err != nil {
-							return errors.New("cannot write to config file")
-						}
-
-						return nil
 					}
 				}
 			}
 		}
+		if ExisitingFolderName == "" {
+			return errors.New("reissue needs existing ssl")
+		}
 	}
-
-	return errors.New("Domain not found with this app")
-}
-
-func enforceHttps(c echo.Context) error {
-	data := new(EnforceHttps)
-	c.Bind(data)
-	var found bool = false
-	var operation bool
-	if data.Operation == "enable" {
-		operation = true
+	var domainFinal string
+	var FolderName string
+	if conf.IsSubdomain {
+		domainFinal = conf.Domain
+		FolderName = conf.Domain
 	} else {
-		operation = false
-	}
-	for i, site := range obj.Sites {
-		if site.Name == data.Name {
-			obj.Sites[i].EnforceHttps = operation
-			found = true
-			if operation {
 
-				htaccess, _ := os.OpenFile(fmt.Sprintf("/home/%s/%s/public/.htaccess", site.User, site.Name), os.O_APPEND|os.O_RDWR|os.O_CREATE, 0644)
-				htaccess.Write([]byte(`
-				#START HOSTING ENFORCE HTTPS
-				RewriteEngine On
-				RewriteCond %{HTTPS} off
-				RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
-				#END HOSTING ENFORCE HTTPS
-				`))
-				htaccess.Close()
-			} else {
-				exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i '/#START HOSTING ENFORCE HTTPS/,/#END HOSTING ENFORCE HTTPS/d' /home/%s/%s/public/.htaccess", site.User, site.Name)).Output()
+		domainFinal, FolderName = resolveDomain(conf)
+		log.Print(domainFinal, FolderName)
+	}
+	if domainFinal == "" {
+		return errors.New("no domain resolved")
+	}
+	_, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("/root/.acme.sh/acme.sh --issue %s -w /home/%s/%s/public --test --force", domainFinal, conf.User, conf.App)).Output()
+	if err != nil {
+		return errors.New("SSL failed to staging")
+	}
+	_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("/root/.acme.sh/acme.sh --issue %s -w /home/%s/%s/public --force", domainFinal, conf.User, conf.App)).Output()
+	if err != nil {
+		return errors.New("SSL failed")
+	}
+	if procedure == "new" || FolderName != ExisitingFolderName {
+		log.Print("Entered the config change loop")
+		for i, site := range obj.Sites {
+			if site.Name == conf.App {
+				if site.PrimaryDomain.Url == conf.Domain {
+					site.PrimaryDomain.SSL.FolderName = FolderName
+					obj.Sites[i].PrimaryDomain = site.PrimaryDomain
+					break
+				} else {
+					for j, alias := range site.AliasDomain {
+						alias.SSL.FolderName = FolderName
+						obj.Sites[i].AliasDomain[j] = alias
+					}
+				}
 			}
-			back, _ := json.MarshalIndent(obj, "", "  ")
-			err := ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
-			if err != nil {
-				return c.JSON(404, "cannot write to config file")
-			}
-			go exec.Command("/bin/bash", "-c", "service lsws restart").Output()
 		}
 	}
-	if !found {
-		return c.JSON(404, "site not found")
+
+	go SaveJSONFile()
+	if procedure == "new" {
+		configureDomainForSSl(conf, FolderName)
+	} else if FolderName != ExisitingFolderName {
+		log.Print("Changing lines now using sed")
+		exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i '/keyFile/c\\    keyFile				/usr/local/lsws/certs/%[1]s/%[1]s.key' /usr/local/lsws/conf/vhosts/%[2]s.d/domain/%[1]s.conf", FolderName, conf.App)).Output()
+		exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i '/certFile/c\\   certFile				/usr/local/lsws/certs/%[1]s/fullchair.cer' /usr/local/lsws/conf/vhosts/%[2]s.d/domain/%[1]s.conf", FolderName, conf.App)).Output()
+		go exec.Command("/bin/bash", "-c", "service lsws reload").Output()
 	}
-	return c.JSON(200, "success")
+	//Need to get old folder name and if folder changes then only change two lines to cert files
+	return nil
 }
 
-func ping(c echo.Context) error {
-	return c.JSON(200, "{'status':'success'}")
-}
+// func wildcard(conf sslConf, procedure string) error {
+// 	ExisitingFolderName := ""
+// 	if procedure == "reissue" {
+// 		for _, site := range obj.Sites {
+// 			if site.Name == conf.App {
+// 				if site.PrimaryDomain.Url == conf.Domain {
+// 					ExisitingFolderName = site.PrimaryDomain.SSL.FolderName
+// 					break
+// 				} else {
+// 					for _, alias := range site.AliasDomain {
+// 						if alias.Url == conf.Domain {
+// 							ExisitingFolderName = alias.SSL.FolderName
+// 							break
+// 						}
+// 					}
+// 				}
+// 			}
+// 		}
+// 		if ExisitingFolderName == "" {
+// 			return errors.New("reissue needs existing ssl")
+// 		}
+// 	}
+// 	domainFinal := "-d " + conf.Domain + " -d *." + conf.Domain
+// 	FolderName := conf.Domain
+
+// }

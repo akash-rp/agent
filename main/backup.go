@@ -13,21 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-co-op/gocron"
 	"github.com/labstack/echo/v4"
 )
 
 var cronBusy bool
-
-func initCron() {
-	cronInt.SetMaxConcurrentJobs(1, gocron.WaitMode)
-	fmt.Print(obj)
-	log.Print("Initializing CronJob")
-	cronInt.StartAsync()
-	for _, site := range obj.Sites {
-		addCronJob(site.LocalBackup, site.Name, site.User, site.LocalBackup.LastRun)
-	}
-}
 
 func updateLocalBackup(c echo.Context) error {
 	backupType := c.Param("type")
@@ -142,7 +131,7 @@ func updateLocalBackup(c echo.Context) error {
 // 				return err
 // 			}
 // 		}
-// 	} 
+// 	}
 // 	if found {
 // 		return nil
 // 	} else {

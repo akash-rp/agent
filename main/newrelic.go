@@ -9,11 +9,16 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-func enabelNewrelic(c echo.Context) error {
+func enabelNewrelicRequest(c echo.Context) error {
 	conf := new(struct {
 		Duration int `json:"duration"`
 	})
 	c.Bind(&conf)
+	enabelNewrelic(conf.Duration)
+	return c.JSON(200, "success")
+}
+
+func enabelNewrelic(duration int) {
 	exec.Command("/bin/bash", "-c", "mv /usr/local/lsws/lsphp74/etc/php/7.4/mods-available/newrelic /usr/local/lsws/lsphp74/etc/php/7.4/mods-available/newrelic.ini").Output()
 	exec.Command("/bin/bash", "-c", "mv /usr/local/lsws/lsphp73/etc/php/7.3/mods-available/newrelic /usr/local/lsws/lsphp73/etc/php/7.3/mods-available/newrelic.ini").Output()
 	exec.Command("/bin/bash", "-c", "mv /usr/local/lsws/lsphp72/etc/php/7.2/mods-available/newrelic /usr/local/lsws/lsphp72/etc/php/7.2/mods-available/newrelic.ini").Output()
@@ -21,13 +26,12 @@ func enabelNewrelic(c echo.Context) error {
 	exec.Command("/bin/bash", "-c", "service newrelic-daemon start").Output()
 	exec.Command("/bin/bash", "-c", "service lsws reload").Output()
 	exec.Command("/bin/bash", "-c", "killall lsphp").Output()
-	if conf.Duration > 0 {
+	if duration > 0 {
 
-		cronInt.Every(1).Day().StartAt(time.Now().Add(time.Hour * time.Duration(conf.Duration))).LimitRunsTo(1).Tag("Newrelic").Do(func() {
+		cronInt.Every(1).Day().StartAt(time.Now().Add(time.Hour * time.Duration(duration))).LimitRunsTo(1).Tag("Newrelic").Do(func() {
 			disableNewrelic()
 		})
 	}
-	return c.JSON(200, "success")
 }
 
 func disableNewrelicRequest(c echo.Context) error {

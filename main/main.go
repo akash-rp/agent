@@ -12,10 +12,16 @@ import (
 	"github.com/go-co-op/gocron"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"github.com/nakabonne/tstorage"
 )
 
 var obj Config
 var cronInt = gocron.NewScheduler(time.UTC)
+var metrics, _ = tstorage.NewStorage(
+	tstorage.WithTimestampPrecision(tstorage.Seconds),
+	tstorage.WithDataPath("/usr/Hosting/metrics"),
+	tstorage.WithWALBufferedSize(0),
+)
 
 // var jobMap = make(map[string]*gocron.Job)
 
@@ -35,7 +41,8 @@ func main() {
 	e.GET("/serverstats", serverStats)
 	e.POST("/wp/add", wpAdd)
 	e.POST("/wp/delete", wpDelete)
-	e.POST("/cert/add", certAdd)
+	e.POST("/cert/add", addSslCert)
+	e.POST("/cert/reissue", reissueSslCert)
 	e.GET("/sites", getSites)
 	e.POST("/domain/add", addDomain)
 	e.POST("/domain/delete", deleteDomain)
@@ -57,10 +64,10 @@ func main() {
 	e.POST("/removeSSH/:user", removeSSHkey)
 	e.GET("/ptlist/:user/:name", getPluginAndThemesStatus)
 	e.POST("/ptoperation/:user/:name", updatePluginsThemes)
-	e.POST("/enforceHttps", enforceHttps)
+	// e.POST("/enforceHttps", enforceHttps)
 	e.POST("/update7G", update7G)
 	e.POST("/updateModsecurity", updateModsecurity)
-	e.POST("/newrelic/enable", enabelNewrelic)
+	e.POST("/newrelic/enable", enabelNewrelicRequest)
 	e.POST("/newrelic/enableSite", enabelNewrelicPerSite)
 	e.POST("/newrelic/disable", disableNewrelicRequest)
 	e.POST("/newrelic/disableSite", disableNewrelicPerSite)
@@ -70,6 +77,9 @@ func main() {
 	e.POST("/service/start/:service", serviceStart)
 	e.POST("/geoip/enable/:site", enableGeoip)
 	e.POST("/geoip/disable/:site", disableGeoip)
+	e.POST("/ipdeny", updateipdeny)
+	e.GET("/metrics", getAllMetrics)
+	e.GET("/metrics/:metric/:period", getMetrice)
 	e.Logger.Fatal(e.Start(":8081"))
 }
 
@@ -82,6 +92,9 @@ func serverStats(c echo.Context) error {
 	useddisk, _ := exec.Command("/bin/bash", "-c", " df -h --total -x tmpfs -x devtmpfs -x udev| awk '/total/{printf $3}'").Output()
 	bandwidth, _ := exec.Command("/bin/bash", "-c", "vnstat | awk 'NR==4{print $5$6}'").Output()
 	os, err := exec.Command("/bin/bash", "-c", "hostnamectl | grep 'Operating System' | cut -f 2 -d : | awk '{$1=$1}1'").Output()
+	uptime, _ := exec.Command("/bin/bash", "-c", "awk '{print int($1/3600)\"h\"\" \"int(($1%3600)/60)\"m\"\" \"int($1%60)\"s\"}' /proc/uptime").Output()
+	loadavg, _ := exec.Command("/bin/bash", "-c", "uptime | awk '{ printf \"%s %s %s\",$10,$11,$12}'").Output()
+	cpuideal, _ := exec.Command("/bin/bash", "-c", "vmstat | awk 'FNR == 3 {print $15}'").Output()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -96,6 +109,9 @@ func serverStats(c echo.Context) error {
 		Cores:       strings.TrimSuffix(string(cores), "\n"),
 		Cpu:         strings.TrimSuffix(string(cpuname), "\n"),
 		Os:          strings.TrimSuffix(string(os), "\n"),
+		Uptime:      strings.TrimSuffix(string(uptime), "\n"),
+		LoadAvg:     strings.TrimSuffix(string(loadavg), "\n"),
+		CpuIdeal:    strings.TrimSuffix(string(cpuideal), "\n"),
 	}
 	return c.JSON(http.StatusOK, m)
 }

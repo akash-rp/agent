@@ -9,6 +9,9 @@ type systemstats struct {
 	UsedDisk    string `json:"usedDisk"`
 	Bandwidth   string `json:"bandwidth"`
 	Os          string `json:"os"`
+	Uptime      string `json:"uptime"`
+	LoadAvg     string `json:"loadavg"`
+	CpuIdeal    string `json:"cpuideal"`
 }
 
 type wpadd struct {
@@ -40,20 +43,32 @@ type wpdelete struct {
 	IsStaging bool `json:"isStaging"`
 }
 
-type wpcert struct {
-	AppName     string  `json:"appName"`
-	Url         string  `json:"url"`
-	Type        string  `json:"domainType"`
-	IsSubdomain string  `json:"isSubdomain"`
-	SslConf     sslConf `json:"sslConf"`
-}
+// type wpcert struct {
+// 	AppName     string  `json:"appName"`
+// 	Url         string  `json:"url"`
+// 	Type        string  `json:"domainType"`
+// 	IsSubdomain string  `json:"isSubdomain"`
+// 	SslConf     sslConf `json:"sslConf"`
+// }
+
+// type sslConf struct {
+// 	IsWildcard string `json:"isWildcard"`
+// 	Type       string `json:"type"`
+// 	KeyType    string `json:"keyType"`
+// 	CustomKey  string `json:"customKey"`
+// 	CustomCert string `json:"CustomCert"`
+// }
 
 type sslConf struct {
-	IsWildcard string `json:"isWildcard"`
-	Type       string `json:"type"`
-	KeyType    string `json:"keyType"`
-	CustomKey  string `json:"customKey"`
-	CustomCert string `json:"CustomCert"`
+	App         string `json:"app"`
+	User        string `json:"user"`
+	SslMethod   string `json:"sslMethod"`
+	IsSubdomain bool   `json:"isSubdomain"`
+	Custom      struct {
+		Certificate string `json:"certificate"`
+		Key         string `json:"key"`
+	} `json:"custom"`
+	Domain string `json:"domain"`
 }
 
 type errcode struct {
@@ -143,16 +158,15 @@ type Site struct {
 // }
 
 type Config struct {
-	Global  Global  `json:"global"`
-	Default Default `json:"defaults"`
-	Sites   []Site  `json:"sites"`
-	SSL     bool    `json:"ssl"`
+	Sites []Site `json:"sites"`
 }
 
 type DomainJSON struct {
-	Url      string `json:"url"`
-	SSL      bool   `json:"ssl"`
-	WildCard bool   `json:"wildcard"`
+	Url string `json:"url"`
+	SSL struct {
+		FolderName string `json:"folderName"`
+	} `json:"ssl"`
+	WildCard bool `json:"wildcard"`
 }
 
 type Backup struct {
@@ -229,4 +243,14 @@ type PluginsThemesOperation struct {
 type EnforceHttps struct {
 	Operation string `json:"operation"`
 	Name      string `json:"name"`
+}
+type MetricsValue struct {
+	Time  int     `json:"time"`
+	Value float64 `json:"value"`
+}
+
+type SingleService struct {
+	Service string `json:"service"`
+	Running bool   `json:"running"`
+	Process string `json:"process"`
 }

@@ -121,7 +121,7 @@ func addDomainConf(Domain Domain, appName string) error {
 # Editing this file manually might change litespeed behavior,
 # Make sure you know what are you doing
 virtualhost %s {
-  listeners http
+  listeners http, https
 	
   vhDomain                  %s	
   

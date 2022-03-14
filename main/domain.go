@@ -118,7 +118,7 @@ func addDomain(c echo.Context) error {
 	if err != nil {
 		return c.JSON(400, err)
 	}
-
+	addDomainToJson(*site)
 	go exec.Command("/bin/bash", "-c", "service lsws restart").Output()
 	return c.JSON(200, "Success")
 }
@@ -135,7 +135,33 @@ func deleteDomain(c echo.Context) error {
 		log.Print(string(out))
 		return c.JSON(400, "Cannot delete domain")
 	}
-
+	deleteDomainFromJson(*site)
 	go exec.Command("/bin/bash", "-c", "service lsws restart").Output()
 	return c.JSON(200, "Success")
+}
+
+func addDomainToJson(conf DomainConf) {
+	for i, site := range obj.Sites {
+		if site.Name == conf.SiteName {
+
+			site.AliasDomain = append(site.AliasDomain, DomainJSON{Url: conf.Domain.Url})
+			obj.Sites[i] = site
+		}
+	}
+	SaveJSONFile()
+}
+
+func deleteDomainFromJson(conf DomainConf) {
+	for i, site := range obj.Sites {
+		if site.Name == conf.SiteName {
+			for j, alias := range site.AliasDomain {
+				if alias.Url == conf.Domain.Url {
+					final := append(site.AliasDomain[:j], site.AliasDomain[j+1:]...)
+					site.AliasDomain = final
+					obj.Sites[i] = site
+				}
+			}
+		}
+	}
+	SaveJSONFile()
 }
