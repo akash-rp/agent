@@ -464,21 +464,46 @@ func takeLocalOndemandBackup(name string, user string, staging bool) error {
 func getLocalBackupsList(c echo.Context) error {
 	name := c.Param("name")
 	user := c.Param("user")
-	backuptype := c.Param("mode")
+	type Summ struct {
+		Size int `json:"size"`
+	}
+	type RootEntry struct {
+		Summ Summ `json:"summ"`
+	}
 
+	type BackupList []struct {
+		ID        string    `json:"id"`
+		StartTime time.Time `json:"startTime"`
+		RootEntry RootEntry `json:"rootEntry"`
+	}
+	type Backup struct {
+		Automatic BackupList `json:"automatic"`
+		Ondemand  BackupList `json:"ondemand"`
+	}
 	for cronBusy {
 		time.Sleep(time.Millisecond * 100)
 	}
 
-	_, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia repository connect filesystem --path=/var/Backup/%s --password=kopia", backuptype)).Output()
+	_, err := exec.Command("/bin/bash", "-c", "kopia repository connect filesystem --path=/var/Backup/ondemand --password=kopia").Output()
 	if err != nil {
 		return c.JSON(echo.ErrNotFound.Code, "Cannot connect to filesystem")
 	}
-	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia snapshot list /home/%s/%s --json --json-indent", user, name)).CombinedOutput()
+	ondemand, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia snapshot list /home/%s/%s --json", user, name)).CombinedOutput()
 	if err != nil {
 		return c.JSON(echo.ErrNotFound.Code, "Cannot list backups")
 	}
-	return c.JSON(http.StatusOK, string(out))
+	_, err = exec.Command("/bin/bash", "-c", "kopia repository connect filesystem --path=/var/Backup/automatic --password=kopia").Output()
+	if err != nil {
+		return c.JSON(echo.ErrNotFound.Code, "Cannot connect to filesystem")
+	}
+	automatic, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia snapshot list /home/%s/%s --json", user, name)).CombinedOutput()
+	if err != nil {
+		return c.JSON(echo.ErrNotFound.Code, "Cannot list backups")
+	}
+	list := new(Backup)
+	json.Unmarshal(ondemand, &list.Ondemand)
+	json.Unmarshal(automatic, &list.Automatic)
+	return c.JSON(http.StatusOK, list)
 
 }
 

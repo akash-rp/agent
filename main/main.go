@@ -18,7 +18,7 @@ import (
 var obj Config
 var cronInt = gocron.NewScheduler(time.UTC)
 var metrics, _ = tstorage.NewStorage(
-	tstorage.WithTimestampPrecision(tstorage.Seconds),
+	tstorage.WithTimestampPrecision(tstorage.Milliseconds),
 	tstorage.WithDataPath("/usr/Hosting/metrics"),
 	tstorage.WithWALBufferedSize(0),
 )
@@ -46,6 +46,8 @@ func main() {
 	e.GET("/sites", getSites)
 	e.POST("/domain/add", addDomain)
 	e.POST("/domain/delete", deleteDomain)
+	e.POST("/domain/wildcard/add", addWildcard)
+	e.POST("/domain/wildcard/remove", removeWildcard)
 	e.POST("/changeprimary", changePrimary)
 	e.POST("/changePHP", changePHP)
 	e.GET("/getPHPini/:name", getPHPini)
@@ -53,7 +55,7 @@ func main() {
 	e.POST("/updatelocalbackup/:type/:name/:user", updateLocalBackup)
 	e.GET("/takelocalondemandbackup/:name/:user", ondemadBackup)
 	e.GET("/localbackup/nextrun", nextrun)
-	e.GET("/localbackup/list/:name/:user/:mode", getLocalBackupsList)
+	e.GET("/localbackup/list/:name/:user", getLocalBackupsList)
 	e.GET("/restorelocalbackup/:name/:user/:mode/:id/:type", restoreBackupFromPanel)
 	e.GET("/createstaging/:name/:user/:url/:livesiteurl", createStaging)
 	e.GET("/getdbtables/:name/:user", getDatabaseTables)

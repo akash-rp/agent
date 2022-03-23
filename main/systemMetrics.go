@@ -27,34 +27,57 @@ func storeMetrics() {
 		log.Print(err)
 	}
 	now := time.Now().UnixMilli()
-	metrics.InsertRows([]tstorage.Row{
-		{
-			Metric:    "Memory",
-			DataPoint: tstorage.DataPoint{Timestamp: now, Value: usedMem},
-		},
-		{
-			Metric:    "Cpu",
-			DataPoint: tstorage.DataPoint{Timestamp: now, Value: idealCpu},
-		},
-		{
-			Metric:    "Load",
-			DataPoint: tstorage.DataPoint{Timestamp: now, Value: loadAvg},
-		},
-		{
-			Metric:    "Disk",
-			DataPoint: tstorage.DataPoint{Timestamp: now, Value: usedDisk},
-		},
-	})
+	if metrics == nil {
+		metrics, err = tstorage.NewStorage(
+			tstorage.WithTimestampPrecision(tstorage.Milliseconds),
+			tstorage.WithDataPath("/usr/Hosting/metrics"),
+			tstorage.WithWALBufferedSize(0),
+		)
+		if err != nil {
+			log.Print(err.Error())
+		}
+	}
+	if metrics != nil {
 
+		metrics.InsertRows([]tstorage.Row{
+			{
+				Metric:    "Memory",
+				DataPoint: tstorage.DataPoint{Timestamp: now, Value: usedMem},
+			},
+			{
+				Metric:    "Cpu",
+				DataPoint: tstorage.DataPoint{Timestamp: now, Value: idealCpu},
+			},
+			{
+				Metric:    "Load",
+				DataPoint: tstorage.DataPoint{Timestamp: now, Value: loadAvg},
+			},
+			{
+				Metric:    "Disk",
+				DataPoint: tstorage.DataPoint{Timestamp: now, Value: usedDisk},
+			},
+		})
+
+	} else {
+		log.Print("Metrics pointer is nil.")
+	}
 }
 
 func metricsPartation() {
-	metrics.Close()
-	metrics, _ = tstorage.NewStorage(
-		tstorage.WithTimestampPrecision(tstorage.Seconds),
+	log.Print("Running Metrics Partation")
+	err := metrics.Close()
+	if err != nil {
+		log.Print(err.Error())
+	}
+	metrics, err = tstorage.NewStorage(
+		tstorage.WithTimestampPrecision(tstorage.Milliseconds),
 		tstorage.WithDataPath("/usr/Hosting/metrics"),
 		tstorage.WithWALBufferedSize(0),
 	)
+	if err != nil {
+		log.Print(err.Error())
+	}
+	log.Print("Partation Completed")
 }
 
 func getAllMetrics(c echo.Context) error {

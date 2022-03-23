@@ -144,7 +144,7 @@ func wpAdd(c echo.Context) error {
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("chown %s:%s %s/.htaccess", wp.UserName, wp.UserName, path)).Output()
 
 	//Add phpini file
-	exec.Command("/bin/bash", "-c", fmt.Sprintf("mkdir -p /usr/local/lsws/php-ini/%s", wp.AppName))
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("mkdir -p /usr/local/lsws/php-ini/%s", wp.AppName)).Output()
 	phpfile, _ := os.OpenFile(fmt.Sprintf("/usr/local/lsws/php-ini/%s/php.ini", wp.AppName), os.O_APPEND|os.O_RDWR|os.O_CREATE, 0644)
 	phpfile.Write([]byte(`
 	[PHP]
@@ -157,6 +157,8 @@ func wpAdd(c echo.Context) error {
 	session.cookie_lifetime=0
 	session.gc_maxlifetime=1440
 	upload_max_filesize=512M
+	short_open_tag = Off
+	date.timezone = "UTC"
 	`))
 	phpfile.Close()
 	// Install wordpress with data provided by request

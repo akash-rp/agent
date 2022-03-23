@@ -79,7 +79,7 @@ extprocessor lsphp_%s {
 	maxConns 5
 	env PHP_LSAPI_MAX_REQUESTS=5000
 	env PHP_LSAPI_CHILDREN=5
-	env PHPRC=/usr/local/lsws/php/%s/php.ini
+	env PHPRC=/usr/local/lsws/php-ini/%s/php.ini
 	initTimeout 60
 	retryTimeout 0
 	persistConn 1
@@ -111,7 +111,7 @@ func addDomainConf(Domain Domain, appName string) error {
 		return errors.New("error creating domain directory")
 	}
 	var confUrl string
-	if Domain.IsSubdomain {
+	if Domain.IsSubDomain {
 		confUrl = Domain.Url
 	} else {
 		confUrl = Domain.Url + ", " + "www." + Domain.Url

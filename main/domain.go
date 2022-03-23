@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os/exec"
@@ -80,7 +82,7 @@ func changePrimary(c echo.Context) error {
 	// for i, site := range obj.Sites {
 	// 	if site.Name == ChangeDomain.Name {
 	// 		prim := site.PrimaryDomain
-	// 		var alias Domain
+	// 		var alias DomainJSON
 	// 		for ia, ali := range site.AliasDomain {
 	// 			if ali.Url == ChangeDomain.MainUrl {
 	// 				alias = ali
@@ -91,8 +93,8 @@ func changePrimary(c echo.Context) error {
 	// 	}
 	// 	obj.Sites[i] = site
 	// }
-	// back, _ := json.MarshalIndent(obj, "", "  ")
-	// ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
+	back, _ := json.MarshalIndent(obj, "", "  ")
+	ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
 	db, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/public/wp-config.php | grep DB_NAME | cut -d \\' -f 4", ChangeDomain.User, ChangeDomain.Name)).Output()
 	dbname := strings.TrimSuffix(string(db), "\n")
 	dbnameArray := strings.Split(dbname, "\n")
@@ -138,6 +140,85 @@ func deleteDomain(c echo.Context) error {
 	deleteDomainFromJson(*site)
 	go exec.Command("/bin/bash", "-c", "service lsws restart").Output()
 	return c.JSON(200, "Success")
+}
+
+func addWildcard(c echo.Context) error {
+	site := new(DomainConf)
+	c.Bind(&site)
+	if site.Domain.Url == "" || site.SiteName == "" {
+		return c.JSON(400, "All fields are not defined")
+	}
+	found := false
+	domain := site.Domain.Url + ", " + "*." + site.Domain.Url
+	for i, oneSite := range obj.Sites {
+		if site.SiteName == oneSite.Name {
+
+			if site.Domain.Type == "primary" {
+				if oneSite.PrimaryDomain.Url == site.Domain.Url {
+					found = true
+					obj.Sites[i].PrimaryDomain.WildCard = true
+				}
+			} else {
+				for j, alias := range oneSite.AliasDomain {
+					if site.Domain.Url == alias.Url {
+						found = true
+						obj.Sites[i].AliasDomain[j].WildCard = true
+
+					}
+				}
+			}
+		}
+	}
+	if found {
+		exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i '/vhDomain/c\\vhDomain %s'  /usr/local/lsws/conf/vhosts/%s.d/domain/%s.conf", domain, site.SiteName, site.Domain.Url)).Output()
+	} else {
+		return c.JSON(400, "Url not found")
+	}
+	go exec.Command("/bin/bash", "-c", "service lsws reload").Output()
+	return c.NoContent(200)
+}
+
+func removeWildcard(c echo.Context) error {
+	site := new(DomainConf)
+	c.Bind(&site)
+	if site.Domain.Url == "" || site.SiteName == "" {
+		return c.JSON(400, "All fields are not defined")
+	}
+	var domain string
+	found := false
+	if site.Domain.IsSubDomain {
+		domain = site.Domain.Url
+	} else {
+		domain = site.Domain.Url + ", " + "www." + site.Domain.Url
+	}
+	for i, oneSite := range obj.Sites {
+		if site.SiteName == oneSite.Name {
+
+			if site.Domain.Type == "primary" {
+				if oneSite.PrimaryDomain.Url == site.Domain.Url {
+					found = true
+					obj.Sites[i].PrimaryDomain.WildCard = false
+				}
+			} else {
+				for j, alias := range oneSite.AliasDomain {
+					if site.Domain.Url == alias.Url {
+						found = true
+						obj.Sites[i].AliasDomain[j].WildCard = false
+
+					}
+				}
+			}
+		}
+	}
+
+	if found {
+
+		exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i '/vhDomain/c\\vhDomain %s'  /usr/local/lsws/conf/vhosts/%s.d/domain/%s.conf", domain, site.SiteName, site.Domain.Url)).Output()
+	} else {
+		return c.JSON(400, "Url not found")
+	}
+	go exec.Command("/bin/bash", "-c", "service lsws reload").Output()
+	return c.NoContent(200)
 }
 
 func addDomainToJson(conf DomainConf) {

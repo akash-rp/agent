@@ -83,9 +83,10 @@ type errcode struct {
 
 type Domain struct {
 	Url         string `json:"url"`
-	IsSubdomain bool   `json:"isSubDomain"`
+	IsSubDomain bool   `json:"isSubDomain"`
 	Routing     string `json:"routing"`
 	IsWildcard  bool   `json:"isWildcard"`
+	Type        string `json:"type"`
 }
 
 type DomainConf struct {
@@ -118,6 +119,7 @@ type PHP struct {
 	SessionGcMaxlifetime  string `ini:"session.gc_maxlifetime"`
 	ShortOpenTag          string `ini:"short_open_tag"`
 	UploadMaxFilesize     string `ini:"upload_max_filesize"`
+	Timezone              string `ini:"date.timezone"`
 }
 
 type PHPini struct {
