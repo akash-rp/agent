@@ -82,6 +82,10 @@ func main() {
 	e.POST("/ipdeny", updateipdeny)
 	e.GET("/metrics", getAllMetrics)
 	e.GET("/metrics/:metric/:period", getMetrice)
+	e.GET("/ssh/users", getSshUsers)
+	e.POST("/ssh/kill", killSshSession)
+	e.GET("/ufw/rules", getUfwRules)
+	e.GET("/fail2ban/ip", getBannedIpList)
 	e.Logger.Fatal(e.Start(":8081"))
 }
 

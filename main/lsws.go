@@ -35,10 +35,22 @@ func addNewSite(wp wpadd) error {
 	if err != nil {
 		return err
 	}
-	us, _ := user.Lookup("lsadm")
-	gp, _ := user.LookupGroup("nogroup")
-	userID, _ := strconv.Atoi(us.Uid)
-	grpId, _ := strconv.Atoi(gp.Gid)
+	us, err := user.Lookup("lsadm")
+	if err != nil {
+		return err
+	}
+	gp, err := user.LookupGroup("nogroup")
+	if err != nil {
+		return err
+	}
+	userID, err := strconv.Atoi(us.Uid)
+	if err != nil {
+		return err
+	}
+	grpId, err := strconv.Atoi(gp.Gid)
+	if err != nil {
+		return err
+	}
 	file, err := os.OpenFile(fmt.Sprintf("/usr/local/lsws/conf/vhosts/%s.d/modules/phpini.conf", wp.AppName), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0750)
 	if err != nil {
 		return errors.New("error opening phpini file")

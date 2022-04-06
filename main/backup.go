@@ -396,7 +396,11 @@ func ondemadBackup(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, err)
 	}
-	return c.JSON(http.StatusOK, "Success")
+	list, err := LocalBackupsList(name, user)
+	if err != nil {
+		return c.JSON(200, "success")
+	}
+	return c.JSON(http.StatusOK, list)
 }
 
 func takeLocalOndemandBackup(name string, user string, staging bool) error {
@@ -464,46 +468,39 @@ func takeLocalOndemandBackup(name string, user string, staging bool) error {
 func getLocalBackupsList(c echo.Context) error {
 	name := c.Param("name")
 	user := c.Param("user")
-	type Summ struct {
-		Size int `json:"size"`
+	list, err := LocalBackupsList(name, user)
+	if err != nil {
+		return c.JSON(400, err.Error())
 	}
-	type RootEntry struct {
-		Summ Summ `json:"summ"`
-	}
+	return c.JSON(200, list)
+}
 
-	type BackupList []struct {
-		ID        string    `json:"id"`
-		StartTime time.Time `json:"startTime"`
-		RootEntry RootEntry `json:"rootEntry"`
-	}
-	type Backup struct {
-		Automatic BackupList `json:"automatic"`
-		Ondemand  BackupList `json:"ondemand"`
-	}
+func LocalBackupsList(name string, user string) (LocalBackup, error) {
+
 	for cronBusy {
 		time.Sleep(time.Millisecond * 100)
 	}
 
 	_, err := exec.Command("/bin/bash", "-c", "kopia repository connect filesystem --path=/var/Backup/ondemand --password=kopia").Output()
 	if err != nil {
-		return c.JSON(echo.ErrNotFound.Code, "Cannot connect to filesystem")
+		return LocalBackup{}, errors.New("Cannot connect to filesystem")
 	}
 	ondemand, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia snapshot list /home/%s/%s --json", user, name)).CombinedOutput()
 	if err != nil {
-		return c.JSON(echo.ErrNotFound.Code, "Cannot list backups")
+		return LocalBackup{}, errors.New("Cannot list backups")
 	}
 	_, err = exec.Command("/bin/bash", "-c", "kopia repository connect filesystem --path=/var/Backup/automatic --password=kopia").Output()
 	if err != nil {
-		return c.JSON(echo.ErrNotFound.Code, "Cannot connect to filesystem")
+		return LocalBackup{}, errors.New("Cannot connect to filesystem")
 	}
 	automatic, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia snapshot list /home/%s/%s --json", user, name)).CombinedOutput()
 	if err != nil {
-		return c.JSON(echo.ErrNotFound.Code, "Cannot list backups")
+		return LocalBackup{}, errors.New("Cannot list backups")
 	}
-	list := new(Backup)
+	list := new(LocalBackup)
 	json.Unmarshal(ondemand, &list.Ondemand)
 	json.Unmarshal(automatic, &list.Automatic)
-	return c.JSON(http.StatusOK, list)
+	return *list, nil
 
 }
 

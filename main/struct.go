@@ -1,5 +1,23 @@
 package main
 
+import "time"
+
+type Summ struct {
+	Size int `json:"size"`
+}
+type RootEntry struct {
+	Summ Summ `json:"summ"`
+}
+
+type BackupList []struct {
+	ID        string    `json:"id"`
+	StartTime time.Time `json:"startTime"`
+	RootEntry RootEntry `json:"rootEntry"`
+}
+type LocalBackup struct {
+	Automatic BackupList `json:"automatic"`
+	Ondemand  BackupList `json:"ondemand"`
+}
 type systemstats struct {
 	Cores       string `json:"cores"`
 	Cpu         string `json:"cpu"`

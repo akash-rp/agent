@@ -13,13 +13,13 @@ func update7G(c echo.Context) error {
 	conf := new(struct {
 		App     string   `json:"app"`
 		User    string   `json:"user"`
-		Status  string   `json:"status"`
+		Enabled bool     `json:"enabled"`
 		Disable []string `json:"disable"`
 	})
 	c.Bind(&conf)
 	path := fmt.Sprintf("/usr/local/lsws/conf/vhosts/%s.d/modules/rewrite.conf", conf.App)
-	switch conf.Status {
-	case "enable":
+	switch conf.Enabled {
+	case true:
 		exec.Command("/bin/bash", "-c", fmt.Sprintf("cp /usr/Hosting/firewall/7g/rewrite.conf %s", path)).Output()
 		exec.Command("/bin/bash", "-c", fmt.Sprintf("cp /usr/Hosting/firewall/7g/7G_log.php /home/%s/%s/public/7G_log.php", conf.User, conf.App)).Output()
 		for _, part := range conf.Disable {
@@ -45,9 +45,9 @@ func update7G(c echo.Context) error {
 
 			}
 		}
-		exec.Command("/bin/bash", "-c", "service lsws reload").Output()
+		go exec.Command("/bin/bash", "-c", "service lsws reload").Output()
 		return c.JSON(200, "Success")
-	case "disable":
+	case false:
 		exec.Command("/bin/bash", "-c", fmt.Sprintf("rm /home/%s/%s/public/7g_log.php", conf.User, conf.App)).Output()
 
 		file, err := os.OpenFile(fmt.Sprintf("/usr/local/lsws/conf/vhosts/%s.d/modules/rewrite.conf", conf.App), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
@@ -57,9 +57,10 @@ func update7G(c echo.Context) error {
 		file.Write([]byte(`
 Rewrite {
 	enable 1
+	AutoLoadHtaccess 1
 }`))
 		file.Close()
-		exec.Command("/bin/bash", "-c", "service lsws reload").Output()
+		go exec.Command("/bin/bash", "-c", "service lsws reload").Output()
 
 		return c.JSON(200, "Success")
 	}
@@ -69,14 +70,14 @@ Rewrite {
 func updateModsecurity(c echo.Context) error {
 	conf := new(struct {
 		App              string `json:"app"`
-		Status           string `json:"status"`
+		Enabled          bool   `json:"enabled"`
 		ParanoiaLevel    int    `json:"paranoiaLevel"`
 		AnomalyThreshold int    `json:"anomalyThreshold"`
 	})
 	c.Bind(&conf)
 
-	switch conf.Status {
-	case "enable":
+	switch conf.Enabled {
+	case true:
 		if conf.ParanoiaLevel <= 0 && conf.ParanoiaLevel > 4 && conf.AnomalyThreshold < 5 && conf.AnomalyThreshold > 100 {
 			return c.JSON(400, "Invalid levels")
 		}
@@ -122,7 +123,7 @@ module mod_security {
 		modsec.Close()
 		go exec.Command("/bin/bash", "-c", "service lsws reload").Output()
 		return c.JSON(200, "Success")
-	case "disable":
+	case false:
 		exec.Command("/bin/bash", "-c", fmt.Sprintf("rm -rf /usr/local/lsws/conf/vhosts/%[1]s.d/modules/modsecurity.*", conf.App)).Output()
 		go exec.Command("/bin/bash", "-c", "service lsws reload").Output()
 

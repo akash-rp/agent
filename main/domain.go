@@ -132,7 +132,7 @@ func deleteDomain(c echo.Context) error {
 		return c.JSON(400, "All fields are not defined")
 	}
 	log.Print(site.Domain.Url)
-	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("rm %s/%s.d/domain/%s.conf", RootPath, site.SiteName, site.Domain.Url)).CombinedOutput()
+	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("rm -rf %s/%s.d/domain/%s.conf*", RootPath, site.SiteName, site.Domain.Url)).CombinedOutput()
 	if err != nil {
 		log.Print(string(out))
 		return c.JSON(400, "Cannot delete domain")
