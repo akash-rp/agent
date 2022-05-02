@@ -17,6 +17,7 @@ type BackupList []struct {
 type LocalBackup struct {
 	Automatic BackupList `json:"automatic"`
 	Ondemand  BackupList `json:"ondemand"`
+	System    BackupList `json:"system"`
 }
 type systemstats struct {
 	Cores       string `json:"cores"`
@@ -246,7 +247,8 @@ type SyncChanges struct {
 }
 
 type SSH struct {
-	Key string `json:"key"`
+	Key  string `json:"key"`
+	User string `json:"user"`
 }
 
 type PluginsThemesOperation struct {
@@ -273,4 +275,11 @@ type SingleService struct {
 	Service string `json:"service"`
 	Running bool   `json:"running"`
 	Process string `json:"process"`
+}
+
+type FieldError struct {
+	Error struct {
+		Field   string `json:"field"`
+		Message string `json:"message"`
+	} `json:"error"`
 }

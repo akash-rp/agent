@@ -77,21 +77,16 @@ phpIniOverride{
 func addExtPhp(wp wpadd) error {
 	path := RootPath + fmt.Sprintf("/%s.d/modules", wp.AppName)
 	exphp := fmt.Sprintf(`
-	index {
-		useServer 0
-		indexFiles index.php index.html
-	}
-	
-	scripthandler {
-		add lsapi:lsphp_%s php
-	}
-extprocessor lsphp_%s {
+extprocessor lsphp_%[1]s {
 	type lsapi
-	address uds://tmp/lshttpd/lsphp-%s.sock
+	address uds://tmp/lshttpd/lsphp-%[1]s.sock
 	maxConns 5
 	env PHP_LSAPI_MAX_REQUESTS=5000
 	env PHP_LSAPI_CHILDREN=5
-	env PHPRC=/usr/local/lsws/php-ini/%s/php.ini
+	env PHPRC=/usr/local/lsws/php-ini/%[1]s/php.ini
+	env PHP_LSAPI_MAX_IDLE=300
+	env PHP_LSAPI_MAX_PROCESS_TIME=3600
+	env PHP_LSAPI_SLOW_REQ_MSECS=0
 	initTimeout 60
 	retryTimeout 0
 	persistConn 1
@@ -100,15 +95,15 @@ extprocessor lsphp_%s {
 	path /usr/local/lsws/lsphp74/bin/lsphp
 	backlog 100
 	instances 1
-	extUser %s
-	extGroup %s
+	extUser %[2]s
+	extGroup %[2]s
 	runOnStartUp 3
 	priority 0
 	memSoftLimit 2047M
 	memHardLimit 2047M
 	procSoftLimit 400
 	procHardLimit 500
-}`, wp.AppName, wp.AppName, wp.AppName, wp.AppName, wp.UserName, wp.UserName)
+}`, wp.AppName, wp.UserName)
 
 	if err := ioutil.WriteFile(fmt.Sprintf("%s/extphp.conf", path), []byte(exphp), 0750); err != nil {
 		return errors.New("error writing extphp")
@@ -184,6 +179,14 @@ func addMainConf(wp wpadd) error {
 	}
 	
 	include /usr/local/lsws/conf/vhosts/%[2]s.d/modules/*.conf
+	index {
+		useServer 0
+		indexFiles index.php index.html
+	}
+	
+	scripthandler {
+		add lsapi:lsphp_%[2]s php
+	}
 `, wp.UserName, wp.AppName)
 
 	if err := ioutil.WriteFile(fmt.Sprintf("%s/main.conf", path), []byte(second), 0750); err != nil {

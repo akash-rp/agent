@@ -65,10 +65,13 @@ func storeMetrics() {
 
 func metricsPartation() {
 	log.Print("Running Metrics Partation")
-	err := metrics.Close()
-	if err != nil {
-		log.Print(err.Error())
+	if metrics != nil {
+		err := metrics.Close()
+		if err != nil {
+			log.Print(err.Error())
+		}
 	}
+	var err error
 	metrics, err = tstorage.NewStorage(
 		tstorage.WithTimestampPrecision(tstorage.Milliseconds),
 		tstorage.WithDataPath("/usr/Hosting/metrics"),

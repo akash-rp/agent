@@ -267,16 +267,12 @@ func createDatabase(d db, f *os.File) error {
 	return nil
 }
 
-func getPluginAndThemesStatus(c echo.Context) error {
+func getPluginsList(c echo.Context) error {
 	user := c.Param("user")
 	name := c.Param("name")
-	plugin, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %[1]s -i /usr/Hosting/wp-cli plugin list --format=json --path='/home/%[1]s/%[2]s/public'", user, name)).CombinedOutput()
+	plugin, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %[1]s -i /usr/Hosting/wp-cli plugin list --fields=title,name,update,update_version,status,version --format=json --path='/home/%[1]s/%[2]s/public'", user, name)).CombinedOutput()
 	if err != nil {
 		return c.JSON(404, "Cannot get plugins list")
-	}
-	theme, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %[1]s -i /usr/Hosting/wp-cli theme list --format=json --path='/home/%[1]s/%[2]s/public'", user, name)).Output()
-	if err != nil {
-		return c.JSON(404, "Cannot get themes list")
 	}
 	var plugins []interface{}
 	err = json.Unmarshal(plugin, &plugins)
@@ -284,13 +280,24 @@ func getPluginAndThemesStatus(c echo.Context) error {
 		fmt.Println(err)
 		return c.JSON(400, "err")
 	}
+	return c.JSON(200, plugins)
+}
+func getThemesList(c echo.Context) error {
+	user := c.Param("user")
+	name := c.Param("name")
+	theme, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %[1]s -i /usr/Hosting/wp-cli theme list --format=json --path='/home/%[1]s/%[2]s/public' --fields=title,name,update,update_version,status,version", user, name)).Output()
+	if err != nil {
+		return c.JSON(404, "Cannot get themes list")
+	}
+
 	var themes []interface{}
 	err = json.Unmarshal(theme, &themes)
 	if err != nil {
 		fmt.Println(err)
 		return c.JSON(400, "err")
 	}
-	return c.JSON(200, map[string]interface{}{"plugins": plugins, "themes": themes})
+
+	return c.JSON(200, themes)
 }
 
 func updatePluginsThemes(c echo.Context) error {
