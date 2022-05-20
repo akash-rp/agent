@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"strings"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -31,6 +30,11 @@ func createStaging(c echo.Context) error {
 		LogError(logFile, "Error occured while taking backup", nil, "Staging")
 		return c.JSON(http.StatusBadRequest, "Backup process Failed")
 	}
+	rootPass, err := getMariadbRootPass()
+	if err != nil {
+		LogError(logFile, "Failed to get root password", nil, "staging")
+		return c.JSON(400, "Root password not found")
+	}
 	logFile.Write([]byte(fmt.Sprintf("Copying file and folders from %s to %s_Staging\n", Name, Name)))
 	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("cp -r -p /home/%s/%s /home/%s/%s_Staging", User, Name, User, Name)).CombinedOutput()
 	if err != nil {
@@ -38,28 +42,26 @@ func createStaging(c echo.Context) error {
 		return c.JSON(echo.ErrBadRequest.Code, "Failed to copy files")
 	}
 	logFile.Write([]byte("Taking Database Dump\n"))
-	db, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/public/wp-config.php | grep DB_NAME | cut -d \\' -f 4", User, Name)).Output()
-	dbname := strings.TrimSuffix(string(db), "\n")
-	dbnameArray := strings.Split(dbname, "\n")
-	if len(dbnameArray) > 1 {
+	dbname, _, _, err := getDbcredentials(User, Name)
+	if err != nil {
 		LogError(logFile, "Invalid wp-config file configuration", nil, "Staging")
 		return errors.New("invalid wp-config file")
 	}
-	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("mydumper -B %s -o /home/%s/%s/private/DatabaseBackup/", dbnameArray[0], User, Name)).CombinedOutput()
+	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("mydumper -u root -p %s -B %s -o /home/%s/%s/private/DatabaseBackup/", rootPass, dbname, User, Name)).CombinedOutput()
 	if err != nil {
 		deleteDatabaseDump(User, Name)
 		LogError(logFile, "Failed to create database dump", out, "Staging")
 		return errors.New("database Dump error")
 	}
 	logFile.Write([]byte("Restoring Database dump to staging database\n"))
-	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("myloader -d /home/%s/%s/private/DatabaseBackup -o -B %s_Staging", User, Name, Name)).CombinedOutput()
+	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("myloader -u root -p %s -d /home/%s/%s/private/DatabaseBackup -o -B %s_Staging", rootPass, User, Name, Name)).CombinedOutput()
 	if err != nil {
 		deleteDatabaseDump(User, Name)
 		LogError(logFile, "Failed to create staging database", out, "Staging")
 		return c.JSON(echo.ErrNotFound.Code, "Failed to create staging database")
 	}
 	logFile.Write([]byte("Performing database search and replace opteration\n"))
-	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("php /usr/Hosting/script/srdb.cli.php -h localhost -n %s_Staging -u root -p '' -s http://%s -r http://%s -x guid -x user_email", Name, LivesiteUrl, Url)).CombinedOutput()
+	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("php /usr/Hosting/script/srdb.cli.php -h localhost -n %s_Staging -u root -p %s -s http://%s -r http://%s -x guid -x user_email", Name, rootPass, LivesiteUrl, Url)).CombinedOutput()
 	if err != nil {
 		deleteDatabaseDump(User, Name)
 		LogError(logFile, "Failed to create staging database", out, "Staging")
@@ -67,19 +69,19 @@ func createStaging(c echo.Context) error {
 	}
 	pass, _ := password.Generate(32, 20, 0, false, true)
 	logFile.Write([]byte("creating new user and granting access to staging database\n"))
-	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -e \"CREATE USER '%s_Staging'@'localhost' IDENTIFIED BY '%s';\"", Name, pass)).CombinedOutput()
+	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -uroot -p%s -e \"CREATE USER '%s_Staging'@'localhost' IDENTIFIED BY '%s';\"", rootPass, Name, pass)).CombinedOutput()
 	if err != nil {
 		deleteDatabaseDump(User, Name)
 		LogError(logFile, "Failed to create staging database user", out, "Staging")
 		return c.JSON(echo.ErrBadRequest.Code, "Failed to create staging user DB")
 	}
-	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -e \"GRANT ALL PRIVILEGES ON %s_Staging.* TO '%s_Staging'@'localhost';\"", Name, Name)).CombinedOutput()
+	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -uroot -p%s -e \"GRANT ALL PRIVILEGES ON %s_Staging.* TO '%s_Staging'@'localhost';\"", rootPass, Name, Name)).CombinedOutput()
 	if err != nil {
 		deleteDatabaseDump(User, Name)
 		LogError(logFile, "Failed to grant privileges to the db", out, "Staging")
 		return c.JSON(echo.ErrBadRequest.Code, "Failed to grant privileges")
 	}
-	exec.Command("/bin/bash", "-c", "mysql -e 'FLUSH PRIVILEGES;'").Output()
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -uroot -p%s -e 'FLUSH PRIVILEGES;'", rootPass)).Output()
 	deleteDatabaseDump(User, Name)
 	logFile.Write([]byte("Replacing wp-config file of staging site with new credentials\n"))
 	path := fmt.Sprintf("/home/%s/%s_Staging/public/wp-config.php", User, Name)
@@ -114,7 +116,7 @@ func createStaging(c echo.Context) error {
 	}
 	logFile.Write([]byte("Staging process completed\n"))
 	logFile.Close()
-	go exec.Command("/bin/bash", "-c", "service lsws restart").Output()
+	defer exec.Command("/bin/bash", "-c", "service lsws restart").Output()
 	return c.JSON(200, "Success")
 }
 
@@ -122,27 +124,11 @@ func getDatabaseTables(c echo.Context) error {
 	Name := c.Param("name")
 	User := c.Param("user")
 	var tables []string
-	db, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/public/wp-config.php | grep DB_NAME | cut -d \\' -f 4", User, Name)).Output()
-	dbname := strings.TrimSuffix(string(db), "\n")
-	dbnameArray := strings.Split(dbname, "\n")
-	if len(dbnameArray) > 1 || len(dbnameArray) == 0 {
-		return errors.New("invalid wp-config file")
+	dbname, dbuser, dbpassword, err := getDbcredentials(User, Name)
+	if err != nil {
+		log.Fatal("Invalid wp-config file")
 	}
-	db, _ = exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/public/wp-config.php | grep DB_USER | cut -d \\' -f 4", User, Name)).Output()
-	dbuser := strings.TrimSuffix(string(db), "\n")
-	dbuserArray := strings.Split(dbuser, "\n")
-	if len(dbuserArray) > 1 || len(dbuserArray) == 0 {
-
-		return errors.New("invalid wp-config file")
-	}
-	db, _ = exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/public/wp-config.php | grep DB_PASSWORD | cut -d \\' -f 4", User, Name)).Output()
-	dbpassword := strings.TrimSuffix(string(db), "\n")
-	dbpasswordArray := strings.Split(dbpassword, "\n")
-	if len(dbpasswordArray) > 1 || len(dbpasswordArray) == 0 {
-
-		return errors.New("invalid wp-config file")
-	}
-	mysql, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(127.0.0.1:3306)/%s", dbuserArray[0], dbpasswordArray[0], dbnameArray[0]))
+	mysql, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(127.0.0.1:3306)/%s", dbuser, dbpassword, dbname))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -224,24 +210,9 @@ func syncCopyFiles(sync SyncChanges, logFile *os.File) error {
 	dest := "/home/" + sync.To.User + "/" + sync.To.Name
 	logFile.Write([]byte("Started File copying process\n"))
 	//get db name,user,password of toSite before rsync
-	db, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/public/wp-config.php | grep DB_NAME | cut -d \\' -f 4", sync.To.User, sync.To.Name)).Output()
-	dbname := strings.TrimSuffix(string(db), "\n")
-	dbnameArray := strings.Split(dbname, "\n")
-	if len(dbnameArray) > 1 || len(dbnameArray) == 0 {
-		return errors.New("invalid wp-config file")
-	}
-	db, _ = exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/public/wp-config.php | grep DB_USER | cut -d \\' -f 4", sync.To.User, sync.To.Name)).Output()
-	dbuser := strings.TrimSuffix(string(db), "\n")
-	dbuserArray := strings.Split(dbuser, "\n")
-	if len(dbuserArray) > 1 || len(dbuserArray) == 0 {
-
-		return errors.New("invalid wp-config file")
-	}
-	db, _ = exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/public/wp-config.php | grep DB_PASSWORD | cut -d \\' -f 4", sync.To.User, sync.To.Name)).Output()
-	dbpassword := strings.TrimSuffix(string(db), "\n")
-	dbpasswordArray := strings.Split(dbpassword, "\n")
-	if len(dbpasswordArray) > 1 || len(dbpasswordArray) == 0 {
-
+	dbname, dbuser, dbpassword, err := getDbcredentials(sync.To.User, sync.To.Name)
+	if err != nil {
+		LogError(logFile, "Invalid wp-config file", nil, "Sync")
 		return errors.New("invalid wp-config file")
 	}
 	//copy files
@@ -310,15 +281,18 @@ func syncCopyFiles(sync SyncChanges, logFile *os.File) error {
 func syncCopyDb(sync SyncChanges, logFile *os.File, shouldRestore *bool) error {
 
 	logFile.Write([]byte("Taking Database Dump\n"))
-	db, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/public/wp-config.php | grep DB_NAME | cut -d \\' -f 4", sync.From.User, sync.From.Name)).Output()
-	dbname := strings.TrimSuffix(string(db), "\n")
-	dbnameArray := strings.Split(dbname, "\n")
-	if len(dbnameArray) > 1 {
+	dbname, _, _, err := getDbcredentials(sync.From.User, sync.From.Name)
+	if err != nil {
 		LogError(logFile, "Invalid wp-config file configuration", nil, "Sync")
 		return errors.New("invalid wp-config file")
 	}
+	rootPass, err := getMariadbRootPass()
+	if err != nil {
+		LogError(logFile, "Root password not found", nil, "Sync")
+		return errors.New("root password not found")
+	}
 	if sync.AllSelected || sync.DbType == "full" {
-		out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("mydumper -B %s -o /home/%s/%s/private/DatabaseBackup/", dbnameArray[0], sync.From.User, sync.From.Name)).CombinedOutput()
+		out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("mydumper -u root -p %s -B %s -o /home/%s/%s/private/DatabaseBackup/", rootPass, dbname, sync.From.User, sync.From.Name)).CombinedOutput()
 		if err != nil {
 			LogError(logFile, "Failed to create database dump", out, "Sync")
 			return errors.New("database Dump error")
@@ -336,7 +310,7 @@ func syncCopyDb(sync SyncChanges, logFile *os.File, shouldRestore *bool) error {
 			dumpTable = dumpTable + table + ","
 			logFile.Write([]byte(table + "\t"))
 		}
-		out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("mydumper -B %s -o /home/%s/%s/private/DatabaseBackup/ -T %s", dbnameArray[0], sync.From.User, sync.From.Name, dumpTable)).CombinedOutput()
+		out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("mydumper -u root -p %s -B %s -o /home/%s/%s/private/DatabaseBackup/ -T %s", rootPass, dbname, sync.From.User, sync.From.Name, dumpTable)).CombinedOutput()
 		if err != nil {
 			LogError(logFile, "Failed to create database dump", out, "Sync")
 			return errors.New("database Dump error")
@@ -344,24 +318,22 @@ func syncCopyDb(sync SyncChanges, logFile *os.File, shouldRestore *bool) error {
 	}
 
 	logFile.Write([]byte(fmt.Sprintf("Collecting DB information of %s site \n", sync.To.Name)))
-	toDb, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/public/wp-config.php | grep DB_NAME | cut -d \\' -f 4", sync.To.User, sync.To.Name)).Output()
-	toDbname := strings.TrimSuffix(string(toDb), "\n")
-	toDbnameArray := strings.Split(toDbname, "\n")
-	if len(toDbnameArray) > 1 {
+	toDbname, _, _, err := getDbcredentials(sync.To.User, sync.To.Name)
+	if err != nil {
 		LogError(logFile, fmt.Sprintf("Invalid wp-config file configuration on %s site", sync.To.Name), nil, "Sync")
 		return errors.New("invalid wp-config file")
 	}
 	*shouldRestore = true
 	logFile.Write([]byte(fmt.Sprintf("Copying %s site Database to %s site database\n", sync.From.Name, sync.To.Name)))
 
-	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("myloader -d /home/%s/%s/private/DatabaseBackup -o -B %s", sync.From.User, sync.From.Name, toDbnameArray[0])).CombinedOutput()
+	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("myloader -u root -p %s -d /home/%s/%s/private/DatabaseBackup -o -B %s", rootPass, sync.From.User, sync.From.Name, toDbname)).CombinedOutput()
 	if err != nil {
 		LogError(logFile, "Failed to copy database", out, "Sync")
 		return errors.New("failed to copy database")
 	}
 
 	logFile.Write([]byte("Performing database search and replace opteration\n"))
-	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("php /usr/Hosting/script/srdb.cli.php -h localhost -n %s -u root -p '' -s http://%s -r http://%s -x guid -x user_email", toDbname, sync.From.Url, sync.To.Url)).CombinedOutput()
+	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("php /usr/Hosting/script/srdb.cli.php -h localhost -n %s -u root -p %s -s http://%s -r http://%s -x guid -x user_email", toDbname, rootPass, sync.From.Url, sync.To.Url)).CombinedOutput()
 	if err != nil {
 		LogError(logFile, "Failed to Search and Replace url in database", out, "Sync")
 		return errors.New("search and replace operation failed")
@@ -387,26 +359,22 @@ func deleteStagingSite(c echo.Context) error {
 func deleteStagingSiteInternal(name string, user string) error {
 	// logFile, _ := os.OpenFile(fmt.Sprintf("/var/log/hosting/%s/staging.log", name), os.O_APPEND|os.O_RDWR|os.O_CREATE, 0644)
 	// logFile.Write([]byte("------------------------------------------------------------------------------\n"))
-	db, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/public/wp-config.php | grep DB_NAME | cut -d \\' -f 4", user, name)).Output()
-	dbname := strings.TrimSuffix(string(db), "\n")
-	dbnameArray := strings.Split(dbname, "\n")
-	if len(dbnameArray) > 1 || len(dbnameArray) == 0 {
+	dbname, dbuser, _, err := getDbcredentials(user, name)
+	if err != nil {
 		return errors.New("invalid wp-config file")
 	}
-	db, _ = exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/public/wp-config.php | grep DB_USER | cut -d \\' -f 4", user, name)).Output()
-	dbuser := strings.TrimSuffix(string(db), "\n")
-	dbuserArray := strings.Split(dbuser, "\n")
-	if len(dbuserArray) > 1 || len(dbuserArray) == 0 {
-		return errors.New("invalid wp-config file")
+	rootPass, err := getMariadbRootPass()
+	if err != nil {
+		return errors.New("root password not found")
 	}
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("rm -rf /home/%s/%s", user, name)).Output()
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("rm -rf /usr/local/lsws/conf/vhosts/%s.*", name)).Output()
-	exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -e \"DROP DATABASE %s;\"", name)).Output()
-	exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -e \"DROP USER '%s'@'localhost';\"", name)).Output()
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -uroot -p%s -e \"DROP DATABASE %s;\"", rootPass, dbname)).Output()
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -uroot -p%s -e \"DROP USER '%s'@'localhost';\"", rootPass, dbuser)).Output()
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia repository connect filesystem --path=/var/Backup/ondemand --password=kopia ; kopia snapshot delete --all-snapshots-for-source /home/%s/%s --delete", user, name)).Output()
 	deleteSiteFromJSON(name)
-	go exec.Command("/bin/bash", "-c", "killall lsphp").Output()
-	go exec.Command("/bin/bash", "-c", "service lsws restart").Output()
+	defer exec.Command("/bin/bash", "-c", "killall lsphp").Output()
+	defer exec.Command("/bin/bash", "-c", "service lsws restart").Output()
 
 	// exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i '/%s\\/%s/d' /etc/incron.d/sites.txt", user, name)).Output()
 	return nil

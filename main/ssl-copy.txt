@@ -113,7 +113,7 @@ func enforceHttps(c echo.Context) error {
 			if err != nil {
 				return c.JSON(404, "cannot write to config file")
 			}
-			go exec.Command("/bin/bash", "-c", "service lsws restart").Output()
+			defer exec.Command("/bin/bash", "-c", "service lsws restart").Output()
 		}
 	}
 	if !found {

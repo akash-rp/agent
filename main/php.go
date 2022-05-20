@@ -21,8 +21,8 @@ func changePHP(c echo.Context) error {
 	back, _ := json.MarshalIndent(obj, "", "  ")
 	ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i '/^#/!s|path /usr/local/lsws/%s/bin/lsphp|path /usr/local/lsws/%s/bin/lsphp|' /usr/local/lsws/conf/vhosts/%s.d/modules/extphp.conf", PHPDetails.OldPHP, PHPDetails.NewPHP, PHPDetails.Name)).Output()
-	go exec.Command("/bin/bash", "-c", "service lsws restart").Output()
-	go exec.Command("/bin/bash", "-c", "killall lsphp").Output()
+	defer exec.Command("/bin/bash", "-c", "service lsws restart").Output()
+	defer exec.Command("/bin/bash", "-c", "killall lsphp").Output()
 	return c.String(http.StatusOK, "success")
 }
 
@@ -47,8 +47,8 @@ func updatePHPini(c echo.Context) error {
 	cfg := ini.Empty()
 	ini.ReflectFrom(cfg, php)
 	cfg.SaveTo(path)
-	go exec.Command("/bin/bash", "-c", "service lsws restart").Output()
-	go exec.Command("/bin/bash", "-c", "killall lsphp").Output()
+	defer exec.Command("/bin/bash", "-c", "service lsws restart").Output()
+	defer exec.Command("/bin/bash", "-c", "killall lsphp").Output()
 	cfg, err := ini.Load(path)
 	if err != nil {
 		return c.JSON(400, "File not found")
@@ -160,6 +160,6 @@ extprocessor lsphp_%[1]s {
 		log.Print(err.Error())
 		return c.NoContent(400)
 	}
-	go exec.Command("/bin/bash", "-c", "service lsws reload; killall lsphp").Output()
+	defer exec.Command("/bin/bash", "-c", "service lsws reload; killall lsphp").Output()
 	return getPHPSettings(c)
 }

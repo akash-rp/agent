@@ -139,6 +139,7 @@ type PHP struct {
 	ShortOpenTag          string `ini:"short_open_tag"`
 	UploadMaxFilesize     string `ini:"upload_max_filesize"`
 	Timezone              string `ini:"date.timezone"`
+	OpenBaseDir           string `ini:"open_basedir"`
 }
 
 type PHPini struct {
@@ -196,7 +197,6 @@ type Backup struct {
 	Time      BackupTime      `json:"time"`
 	Retention BackupRetention `json:"retention"`
 	LastRun   string          `json:"lastrun"`
-	Created   bool            `json:"created"`
 }
 
 type BackupTime struct {

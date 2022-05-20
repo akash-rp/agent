@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -9,9 +10,11 @@ import (
 	"os/exec"
 	"os/user"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/sethvargo/go-password/password"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func wpAdd(c echo.Context) error {
@@ -146,7 +149,7 @@ func wpAdd(c echo.Context) error {
 	//Add phpini file
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("mkdir -p /usr/local/lsws/php-ini/%s", wp.AppName)).Output()
 	phpfile, _ := os.OpenFile(fmt.Sprintf("/usr/local/lsws/php-ini/%s/php.ini", wp.AppName), os.O_APPEND|os.O_RDWR|os.O_CREATE, 0644)
-	phpfile.Write([]byte(`
+	phpfile.Write([]byte(fmt.Sprintf(`
 	[PHP]
 	max_execution_time=200
 	max_file_uploads=20
@@ -159,7 +162,8 @@ func wpAdd(c echo.Context) error {
 	upload_max_filesize=512M
 	short_open_tag = Off
 	date.timezone = "UTC"
-	`))
+	open_basedir="/home/%s/%s/public:/tmp"
+	`, wp.UserName, wp.AppName)))
 	phpfile.Close()
 	// Install wordpress with data provided by request
 	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %s -i -- /usr/Hosting/wp-cli core install --path=%s --url=%s --title=%s --admin_user=%s --admin_password=%s --admin_email=%s", wp.UserName, path, url, wp.Title, wp.AdminUser, wp.AdminPassword, wp.AdminEmail)).CombinedOutput()
@@ -199,28 +203,23 @@ func wpAdd(c echo.Context) error {
 	db["name"] = dbCred.Name
 	db["user"] = dbCred.User
 	return c.JSON(http.StatusOK, db)
-
 }
 
 func wpDelete(c echo.Context) error {
 	wp := new(wpdelete)
 	c.Bind(&wp)
-	db, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/public/wp-config.php | grep DB_NAME | cut -d \\' -f 4", wp.Main.User, wp.Main.Name)).Output()
-	dbname := strings.TrimSuffix(string(db), "\n")
-	dbnameArray := strings.Split(dbname, "\n")
-	if len(dbnameArray) > 1 || len(dbnameArray) == 0 {
+	dbname, dbuser, _, err := getDbcredentials(wp.Main.User, wp.Main.Name)
+	if err != nil {
 		return c.JSON(404, "invalid wp-config file")
 	}
-	db, _ = exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/public/wp-config.php | grep DB_USER | cut -d \\' -f 4", wp.Main.User, wp.Main.Name)).Output()
-	dbuser := strings.TrimSuffix(string(db), "\n")
-	dbuserArray := strings.Split(dbuser, "\n")
-	if len(dbuserArray) > 1 || len(dbuserArray) == 0 {
-		return c.JSON(404, "invalid wp-config file")
+	rootPass, err := getMariadbRootPass()
+	if err != nil {
+		return c.JSON(404, "root password not found")
 	}
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("rm -rf /home/%s/%s", wp.Main.User, wp.Main.Name)).Output()
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("rm -rf /usr/local/lsws/conf/vhosts/%s.*", wp.Main.Name)).Output()
-	exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -e \"DROP DATABASE %s;\"", dbname)).Output()
-	exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -e \"DROP USER '%s'@'localhost';\"", dbuser)).Output()
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -uroot -p%s -e \"DROP DATABASE %s;\"", rootPass, dbname)).Output()
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -uroot -p%s -e \"DROP USER '%s'@'localhost';\"", rootPass, dbuser)).Output()
 	// exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia repository connect filesystem --path=/var/Backup/ondemand --password=kopia ; kopia snapshot delete --all-snapshots-for-source /home/%s/%s --delete", user, name)).Output()
 	deleteSiteFromJSON(wp.Main.Name)
 	log.Print("Checking if staging is true")
@@ -228,8 +227,8 @@ func wpDelete(c echo.Context) error {
 	if wp.IsStaging {
 		deleteStagingSiteInternal(wp.Staging.Name, wp.Staging.User)
 	} else {
-		go exec.Command("/bin/bash", "-c", "killall lsphp").Output()
-		go exec.Command("/bin/bash", "-c", "service lsws restart").Output()
+		defer exec.Command("/bin/bash", "-c", "killall lsphp").Output()
+		defer exec.Command("/bin/bash", "-c", "service lsws restart").Output()
 
 	}
 
@@ -238,7 +237,14 @@ func wpDelete(c echo.Context) error {
 }
 
 func createDatabase(d db, f *os.File) error {
-	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -e \"CREATE DATABASE %s;\"", d.Name)).CombinedOutput()
+	rootPassword, err := getMariadbRootPass()
+	if err != nil {
+		f.Write([]byte(rootPassword))
+		f.Write([]byte(err.Error()))
+		f.Close()
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -uroot -p%s -e \"CREATE DATABASE %s;\"", rootPassword, d.Name)).CombinedOutput()
 	if err != nil {
 		write, _ := json.MarshalIndent(d, "", "  ")
 		f.Write(write)
@@ -246,7 +252,7 @@ func createDatabase(d db, f *os.File) error {
 		f.Close()
 		return echo.NewHTTPError(http.StatusBadRequest, string(out))
 	}
-	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -e \"CREATE USER '%s'@'localhost' IDENTIFIED BY '%s';\"", d.User, d.Password)).CombinedOutput()
+	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -uroot -p%s -e \"CREATE USER '%s'@'localhost' IDENTIFIED VIA mysql_native_password USING PASSWORD('%s');\"", rootPassword, d.User, d.Password)).CombinedOutput()
 	if err != nil {
 		write, _ := json.MarshalIndent(d, "", "  ")
 		f.Write(write)
@@ -254,7 +260,7 @@ func createDatabase(d db, f *os.File) error {
 		f.Close()
 		return echo.NewHTTPError(http.StatusBadRequest, string(out))
 	}
-	exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -e \"GRANT ALL PRIVILEGES ON %s.* TO '%s'@'localhost';\"", d.Name, d.User)).CombinedOutput()
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -uroot -p%s -e \"GRANT ALL PRIVILEGES ON %s.* TO '%s'@'localhost';\"", rootPassword, d.Name, d.User)).CombinedOutput()
 	if err != nil {
 		write, _ := json.MarshalIndent(d, "", "  ")
 		f.Write(write)
@@ -262,7 +268,7 @@ func createDatabase(d db, f *os.File) error {
 		f.Close()
 		return echo.NewHTTPError(http.StatusBadRequest, err)
 	}
-	exec.Command("/bin/bash", "-c", "mysql -e 'FLUSH PRIVILEGES;'").Output()
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -uroot -p%s -e 'FLUSH PRIVILEGES;'", rootPassword)).Output()
 
 	return nil
 }
@@ -282,6 +288,7 @@ func getPluginsList(c echo.Context) error {
 	}
 	return c.JSON(200, plugins)
 }
+
 func getThemesList(c echo.Context) error {
 	user := c.Param("user")
 	name := c.Param("name")
@@ -360,4 +367,222 @@ func updatePluginsThemes(c echo.Context) error {
 	}
 
 	return c.JSON(200, result)
+}
+
+func changeOwnership(c echo.Context) error {
+	type Req struct {
+		Name    string `json:"app"`
+		OldUser string `json:"oldUser"`
+		NewUser string `json:"newUser"`
+		Backup  Backup `json:"backup"`
+	}
+	req := new(Req)
+	c.Bind(&req)
+	for cronBusy {
+		time.Sleep(time.Millisecond * 100)
+	}
+	cronBusy = true
+	if _, err := user.Lookup(req.NewUser); err != nil {
+		exec.Command("/bin/bash", "-c", fmt.Sprintf("useradd --shell /bin/bash --create-home %s", req.NewUser)).Output()
+	} else {
+		if _, err := os.Stat(fmt.Sprintf("/home/%s", req.NewUser)); os.IsNotExist(err) {
+			exec.Command("/bin/bash", "-c", fmt.Sprintf("mkhomedir_helper %s", req.NewUser)).Output()
+		}
+	}
+	if _, err := os.Stat(fmt.Sprintf("/home/%s", req.NewUser)); os.IsNotExist(err) {
+		return c.JSON(400, "New user path not found")
+	}
+
+	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("cp -a /home/%s/%s /home/%s/", req.OldUser, req.Name, req.NewUser)).CombinedOutput()
+	log.Print(string(out))
+	if err != nil {
+		cronBusy = false
+		return c.NoContent(400)
+	}
+	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("chown -R %[1]s:%[1]s /home/%[1]s/%[2]s/", req.NewUser, req.Name)).CombinedOutput()
+	log.Print(string(out))
+	if err != nil {
+		cronBusy = false
+
+		return c.NoContent(400)
+	}
+	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia --config-file=/var/Backup/config/automatic/automatic.config snapshot copy-history /home/%[1]s/%[2]s /home/%[3]s/%[2]s ; kopia --config-file=/var/Backup/config/ondemand/ondemand.config snapshot copy-history /home/%[1]s/%[2]s /home/%[3]s/%[2]s ; kopia --config-file=/var/Backup/config/system/system.config snapshot copy-history /home/%[1]s/%[2]s /home/%[3]s/%[2]s ;", req.OldUser, req.Name, req.NewUser)).CombinedOutput()
+	log.Print(string(out))
+	if err != nil {
+		cronBusy = false
+		return c.NoContent(400)
+	}
+	out, _ = exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia --config-file=/var/Backup/config/automatic/automatic.config snapshot delete --all-snapshots-for-source /home/%[1]s/%[2]s --delete ; kopia --config-file=/var/Backup/config/ondemand/ondemand.config snapshot delete --all-snapshots-for-source /home/%[1]s/%[2]s --delete ; kopia --config-file=/var/Backup/config/system/system.config snapshot delete --all-snapshots-for-source /home/%[1]s/%[2]s --delete ;", req.OldUser, req.Name)).CombinedOutput()
+	log.Print(string(out))
+
+	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("rm -rf /home/%[1]s/%[2]s ", req.OldUser, req.Name)).CombinedOutput()
+	log.Print(string(out))
+	if err != nil {
+		cronBusy = false
+		return c.NoContent(400)
+	}
+	updateLocalBackup(req.Name, req.NewUser, &req.Backup)
+	//change vhroot path in main.conf
+	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i '/^#/!s/vhRoot.*/vhRoot \\/home\\/%[1]s\\/%[2]s/' /usr/local/lsws/conf/vhosts/%[2]s.d/main.conf", req.NewUser, req.Name)).CombinedOutput()
+	//change extUser and extgroup in extphp.conf
+	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i '/^#/!s/extUser.*/extUser %[1]s/' /usr/local/lsws/conf/vhosts/%[2]s.d/modules/extphp.conf ; sed -i '/^#/!s/extGroup.*/extGroup %[1]s/' /usr/local/lsws/conf/vhosts/%[2]s.d/modules/extphp.conf", req.NewUser, req.Name)).CombinedOutput()
+
+	//change user in config.json
+	for i, site := range obj.Sites {
+		if site.Name == req.Name {
+			obj.Sites[i].User = req.NewUser
+			break
+		}
+	}
+	defer SaveJSONFile()
+	defer exec.Command("/bin/bash", "-c", "service lsws reload; killall lsphp").Output()
+	cronBusy = false
+	return c.NoContent(200)
+}
+
+func addSiteAuthentication(c echo.Context) error {
+	type auth struct {
+		Name string `json:"name"`
+		Auth struct {
+			User     string `json:"user"`
+			Password string `json:"password"`
+		} `json:"auth"`
+	}
+	req := new(auth)
+	c.Bind(&req)
+	pass, err := bcrypt.GenerateFromPassword([]byte(req.Auth.Password), 10)
+	if err != nil {
+		log.Println(err.Error())
+		return c.JSON(400, "Failed to generate hash")
+	}
+	db := fmt.Sprintf("%s:%s", req.Auth.User, pass)
+	err = os.WriteFile(fmt.Sprintf("/usr/local/lsws/conf/vhosts/%s.d/userdb", req.Name), []byte(db), 0660)
+	if err != nil {
+		log.Println(err.Error())
+
+		return c.JSON(400, "Failed to write userdb")
+	}
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("chown nobody:nogroup /usr/local/lsws/conf/vhosts/%s.d/userdb", req.Name)).Output()
+	realm := fmt.Sprintf(`
+	realm test {
+		userDB  {
+		  location              /usr/local/lsws/conf/vhosts/%s.d/userdb
+		}
+	}
+	  
+	context / {
+		location              $DOC_ROOT
+		allowBrowse             1
+		realm                   test
+		addDefaultCharset       off
+		authName                Protected
+		accessControl  {
+		  allow                 *
+		}
+	}`, req.Name)
+	err = os.WriteFile(fmt.Sprintf("/usr/local/lsws/conf/vhosts/%s.d/modules/siteauth.conf", req.Name), []byte(realm), 0660)
+	if err != nil {
+		log.Println(err.Error())
+
+		return c.JSON(400, "Failed to write realm file")
+	}
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("chown nobody:nogroup /usr/local/lsws/conf/vhosts/%s.d/modules/siteauth.conf", req.Name)).Output()
+	defer exec.Command("/bin/bash", "-c", "service lsws reload").Output()
+	return c.NoContent(200)
+}
+
+func deleteSiteAuthentication(c echo.Context) error {
+	name := c.Param("name")
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("rm /usr/local/lsws/conf/vhosts/%[1]s.d/userdb ; rm /usr/local/lsws/conf/vhosts/%[1]s.d/modules/siteauth.conf", name)).Output()
+	defer exec.Command("/bin/bash", "-c", "service lsws reload").Output()
+	return c.NoContent(200)
+}
+
+func fixFilePermission(c echo.Context) error {
+	type site struct {
+		Name string `json:"name"`
+		User string `json:"user"`
+	}
+	req := new(site)
+	c.Bind(&req)
+	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("chown -R %[1]s:%[1]s /home/%[1]s/%[2]s/", req.User, req.Name)).CombinedOutput()
+	if err != nil {
+		log.Println(string(out))
+		c.JSON(400, "Failed to chown")
+	}
+	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("find /home/%s/%s -type d -print0 | xargs -0 chmod 755 ", req.User, req.Name)).Output()
+	if err != nil {
+		log.Println(string(out))
+		c.JSON(400, "Failed to chmod d")
+	}
+	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("find /home/%s/%s -type f -print0 | xargs -0 chmod 644 ", req.User, req.Name)).Output()
+	if err != nil {
+		log.Println(string(out))
+		c.JSON(400, "Failed to chmod f")
+	}
+	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("chmod 604 /home/%s/%s/public/.htaccess ", req.User, req.Name)).Output()
+	if err != nil {
+		log.Println(string(out))
+		c.JSON(400, "Failed to chmod htaccess")
+	}
+	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("chmod 640 /home/%s/%s/public/wp-config.php ", req.User, req.Name)).Output()
+	if err != nil {
+		log.Println(string(out))
+		c.JSON(400, "Failed to chmod config")
+	}
+	return c.JSON(200, "success")
+}
+
+func searchAndReplace(c echo.Context) error {
+	type data struct {
+		Search  string `json:"search"`
+		Replace string `json:"replace"`
+		Name    string `json:"name"`
+		User    string `json:"user"`
+	}
+	Data := new(data)
+	c.Bind(&Data)
+	dbname, dbuser, dbpassword, err := getDbcredentials(Data.User, Data.Name)
+	if err != nil {
+		return c.JSON(400, "Failed to get database credentials")
+	}
+	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("php /usr/Hosting/script/srdb.cli.php -h localhost -n %s -u %s -p %s -s %s -r %s", dbname, dbuser, dbpassword, Data.Search, Data.Replace)).CombinedOutput()
+	log.Print(string(out))
+	if err != nil {
+		log.Println(string(out))
+		return c.JSON(400, "Failed to perform serach and replace operation")
+	}
+	return c.JSON(200, "Success")
+}
+
+func getDbcredentials(User string, Name string) (dbname string, dbuser string, password string, err error) {
+	db, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/public/wp-config.php | grep DB_NAME | cut -d \\' -f 4", User, Name)).Output()
+	dbOut := strings.TrimSuffix(string(db), "\n")
+	dbnameArray := strings.Split(dbOut, "\n")
+	if len(dbnameArray) > 1 || len(dbnameArray) == 0 {
+		return "", "", "", errors.New("Invalid wp-config file")
+	}
+	db, _ = exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/public/wp-config.php | grep DB_USER | cut -d \\' -f 4", User, Name)).Output()
+	dbUser := strings.TrimSuffix(string(db), "\n")
+	dbuserArray := strings.Split(dbUser, "\n")
+	if len(dbuserArray) > 1 || len(dbuserArray) == 0 {
+		return "", "", "", errors.New("Invalid wp-config file")
+	}
+	db, _ = exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/public/wp-config.php | grep DB_PASSWORD | cut -d \\' -f 4", User, Name)).Output()
+	dbpassword := strings.TrimSuffix(string(db), "\n")
+	dbpasswordArray := strings.Split(dbpassword, "\n")
+	if len(dbpasswordArray) > 1 || len(dbpasswordArray) == 0 {
+		return "", "", "", errors.New("Invalid wp-config file")
+	}
+	return dbnameArray[0], dbuserArray[0], dbpasswordArray[0], nil
+}
+
+func getMariadbRootPass() (password string, err error) {
+	out, err := exec.Command("/bin/bash", "-c", "grep 'root' /etc/mysql/mariadb.conf.d/root.env").Output()
+	credentials := strings.Split(strings.TrimSuffix(string(out), "\n"), ":")
+	if credentials[0] == "root" {
+		password := credentials[1]
+		return password, nil
+	}
+	return "", errors.New("Failed to get root password")
 }

@@ -68,8 +68,8 @@ phpIniOverride{
 }
 `, conf.App, conf.Key)))
 	file.Close()
-	go exec.Command("/bin/bash", "-c", "service lsws reload").Output()
-	go exec.Command("/bin/bash", "-c", "killall lsphp").Output()
+	defer exec.Command("/bin/bash", "-c", "service lsws reload").Output()
+	defer exec.Command("/bin/bash", "-c", "killall lsphp").Output()
 	return c.JSON(200, "success")
 }
 
@@ -88,7 +88,7 @@ phpIniOverride{
     php_value newrelic.enabled false
 }`))
 	file.Close()
-	go exec.Command("/bin/bash", "-c", "service lsws reload").Output()
-	go exec.Command("/bin/bash", "-c", "killall lsphp").Output()
+	defer exec.Command("/bin/bash", "-c", "service lsws reload").Output()
+	defer exec.Command("/bin/bash", "-c", "killall lsphp").Output()
 	return c.JSON(200, "success")
 }

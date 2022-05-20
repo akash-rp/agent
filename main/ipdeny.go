@@ -30,11 +30,11 @@ accessControl  {
 
 }`, ipstring)))
 		file.Close()
-		go exec.Command("/bin/bash", "-c", "service lsws reload").Output()
+		defer exec.Command("/bin/bash", "-c", "service lsws reload").Output()
 		return c.JSON(200, "Success")
 	} else {
 		exec.Command("/bin/bash", "-c", fmt.Sprintf("rm /usr/local/lsws/conf/vhosts/%s.d/modules/accessdeny.conf", conf.App)).Output()
-		go exec.Command("/bin/bash", "-c", "service lsws reload").Output()
+		defer exec.Command("/bin/bash", "-c", "service lsws reload").Output()
 		return c.JSON(200, "Success")
 
 	}

@@ -8,7 +8,6 @@ import (
 	"log"
 	"net/http"
 	"os/exec"
-	"strings"
 
 	"github.com/labstack/echo/v4"
 )
@@ -95,13 +94,15 @@ func changePrimary(c echo.Context) error {
 	// }
 	back, _ := json.MarshalIndent(obj, "", "  ")
 	ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
-	db, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/public/wp-config.php | grep DB_NAME | cut -d \\' -f 4", ChangeDomain.User, ChangeDomain.Name)).Output()
-	dbname := strings.TrimSuffix(string(db), "\n")
-	dbnameArray := strings.Split(dbname, "\n")
-	if len(dbnameArray) > 1 {
+	dbname, _, _, err := getDbcredentials(ChangeDomain.User, ChangeDomain.Name)
+	if err != nil {
 		return errors.New("invalid wp-config file")
 	}
-	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("php /usr/Hosting/script/srdb.cli.php -h localhost -n %s -u root -p '' -s http://%s -r http://%s -x guid -x user_email", dbnameArray[0], ChangeDomain.AliasUrl, ChangeDomain.MainUrl)).CombinedOutput()
+	rootPass, err := getMariadbRootPass()
+	if err != nil {
+		return errors.New("root password not found")
+	}
+	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("php /usr/Hosting/script/srdb.cli.php -h localhost -n %s -u root -p %s -s http://%s -r http://%s -x guid -x user_email", dbname, rootPass, ChangeDomain.AliasUrl, ChangeDomain.MainUrl)).CombinedOutput()
 	if err != nil {
 		log.Print(string(out))
 		log.Print(err)
@@ -121,7 +122,7 @@ func addDomain(c echo.Context) error {
 		return c.JSON(400, err)
 	}
 	addDomainToJson(*site)
-	go exec.Command("/bin/bash", "-c", "service lsws restart").Output()
+	defer exec.Command("/bin/bash", "-c", "service lsws restart").Output()
 	return c.JSON(200, "Success")
 }
 
@@ -138,7 +139,7 @@ func deleteDomain(c echo.Context) error {
 		return c.JSON(400, "Cannot delete domain")
 	}
 	deleteDomainFromJson(*site)
-	go exec.Command("/bin/bash", "-c", "service lsws restart").Output()
+	defer exec.Command("/bin/bash", "-c", "service lsws restart").Output()
 	return c.JSON(200, "Success")
 }
 
@@ -174,7 +175,7 @@ func addWildcard(c echo.Context) error {
 	} else {
 		return c.JSON(400, "Url not found")
 	}
-	go exec.Command("/bin/bash", "-c", "service lsws reload").Output()
+	defer exec.Command("/bin/bash", "-c", "service lsws reload").Output()
 	return c.NoContent(200)
 }
 
@@ -217,7 +218,7 @@ func removeWildcard(c echo.Context) error {
 	} else {
 		return c.JSON(400, "Url not found")
 	}
-	go exec.Command("/bin/bash", "-c", "service lsws reload").Output()
+	defer exec.Command("/bin/bash", "-c", "service lsws reload").Output()
 	return c.NoContent(200)
 }
 

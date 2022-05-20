@@ -111,7 +111,7 @@ func getAllMetrics(c echo.Context) error {
 
 }
 
-func getMetrice(c echo.Context) error {
+func getMetrics(c echo.Context) error {
 	metric := c.Param("metric")
 	period := c.Param("period")
 	var Mintime int

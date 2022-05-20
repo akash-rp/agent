@@ -35,7 +35,7 @@ func addNewSite(wp wpadd) error {
 	if err != nil {
 		return err
 	}
-	us, err := user.Lookup("lsadm")
+	us, err := user.Lookup("nobody")
 	if err != nil {
 		return err
 	}
@@ -69,6 +69,7 @@ phpIniOverride{
 	if err := os.Chown(fmt.Sprintf("%s/%s.d/main.conf", RootPath, wp.AppName), userID, grpId); err != nil {
 		return errors.New("main conf permission error")
 	}
+	defer exec.Command("/bin/bash", "-c", fmt.Sprintf("chown -R nobody:nogroup %s/%s.*", RootPath, wp.AppName)).Output()
 	defer exec.Command("/bin/bash", "-c", "killall lsphp").Output()
 	defer exec.Command("/bin/bash", "-c", "service lsws restart").Output()
 	return nil

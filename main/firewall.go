@@ -45,7 +45,7 @@ func update7G(c echo.Context) error {
 
 			}
 		}
-		go exec.Command("/bin/bash", "-c", "service lsws reload").Output()
+		defer exec.Command("/bin/bash", "-c", "service lsws reload").Output()
 		return c.JSON(200, "Success")
 	case false:
 		exec.Command("/bin/bash", "-c", fmt.Sprintf("rm /home/%s/%s/public/7g_log.php", conf.User, conf.App)).Output()
@@ -60,7 +60,7 @@ Rewrite {
 	AutoLoadHtaccess 1
 }`))
 		file.Close()
-		go exec.Command("/bin/bash", "-c", "service lsws reload").Output()
+		defer exec.Command("/bin/bash", "-c", "service lsws reload").Output()
 
 		return c.JSON(200, "Success")
 	}
@@ -121,11 +121,11 @@ module mod_security {
  }
 `, conf.App, conf.ParanoiaLevel, conf.AnomalyThreshold)))
 		modsec.Close()
-		go exec.Command("/bin/bash", "-c", "service lsws reload").Output()
+		defer exec.Command("/bin/bash", "-c", "service lsws reload").Output()
 		return c.JSON(200, "Success")
 	case false:
 		exec.Command("/bin/bash", "-c", fmt.Sprintf("rm -rf /usr/local/lsws/conf/vhosts/%[1]s.d/modules/modsecurity.*", conf.App)).Output()
-		go exec.Command("/bin/bash", "-c", "service lsws reload").Output()
+		defer exec.Command("/bin/bash", "-c", "service lsws reload").Output()
 
 		return c.JSON(200, "Success")
 	}

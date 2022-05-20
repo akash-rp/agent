@@ -14,6 +14,7 @@ func getSystemUsers(c echo.Context) error {
 	if err != nil {
 		return c.NoContent(400)
 	}
+	log.Print(string(out))
 	trimmedString := strings.TrimRight(string(out), "\n")
 	list := strings.Split(string(trimmedString), "\n")
 	type User struct {
@@ -24,6 +25,9 @@ func getSystemUsers(c echo.Context) error {
 	users := new(Users)
 	*users = append(*users, User{User: "root", NumberOfSites: 0})
 	for _, user := range list {
+		if user == "" {
+			continue
+		}
 		numSite := 0
 		for _, site := range obj.Sites {
 			if user == site.User {

@@ -119,7 +119,7 @@ virtualhost %[1]s {
   include /usr/local/lsws/conf/vhosts/%[3]s.d/main.conf
 }`, conf.Domain, FolderName, conf.App)))
 	file.Close()
-	go exec.Command("/bin/bash", "-c", "service lsws reload").Output()
+	defer exec.Command("/bin/bash", "-c", "service lsws reload").Output()
 }
 
 func webroot(conf sslConf, procedure string) error {
@@ -183,14 +183,14 @@ func webroot(conf sslConf, procedure string) error {
 		}
 	}
 
-	go SaveJSONFile()
+	defer SaveJSONFile()
 	if procedure == "new" {
 		configureDomainForSSl(conf, FolderName)
 	} else if FolderName != ExisitingFolderName {
 		log.Print("Changing lines now using sed")
 		exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i '/keyFile/c\\    keyFile				/usr/local/lsws/certs/%[1]s/%[1]s.key' /usr/local/lsws/conf/vhosts/%[2]s.d/domain/%[1]s.conf", FolderName, conf.App)).Output()
 		exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i '/certFile/c\\   certFile				/usr/local/lsws/certs/%[1]s/fullchair.cer' /usr/local/lsws/conf/vhosts/%[2]s.d/domain/%[1]s.conf", FolderName, conf.App)).Output()
-		go exec.Command("/bin/bash", "-c", "service lsws reload").Output()
+		defer exec.Command("/bin/bash", "-c", "service lsws reload").Output()
 	}
 	//Need to get old folder name and if folder changes then only change two lines to cert files
 	return nil
