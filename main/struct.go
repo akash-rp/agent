@@ -283,3 +283,17 @@ type FieldError struct {
 		Message string `json:"message"`
 	} `json:"error"`
 }
+
+type Clone struct {
+	Original struct {
+		Name   string `json:"name"`
+		User   string `json:"user"`
+		Domain string `json:"domain"`
+	} `json:"originalSite"`
+	Clone struct {
+		Name   string `json:"name"`
+		User   string `json:"user"`
+		Domain Domain `json:"domain"`
+	} `json:"cloneSite"`
+	Rewrite bool `json:"rewrite"`
+}

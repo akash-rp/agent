@@ -41,7 +41,7 @@ func updateLocalBackup(name string, user string, backup *Backup) error {
 				lastBackup = site.LocalBackup.LastRun
 				err := addCronJob(*backup, name, user, lastBackup)
 				if err != nil {
-					return errors.New("Error adding cron job")
+					return errors.New("error adding cron job")
 				}
 				obj.Sites[i].LocalBackup = *backup
 				if lastBackup == "" {
@@ -65,9 +65,7 @@ func updateLocalBackup(name string, user string, backup *Backup) error {
 		back, _ := json.MarshalIndent(obj, "", "  ")
 		ioutil.WriteFile("/usr/Hosting/config.json", back, 0777)
 		return nil
-
 	}
-	return errors.New("Invalid Request")
 }
 
 // func addNewBackup(name string, user string, backup Backup) error {
@@ -131,29 +129,10 @@ func takeBackup(name string, user string, msg string) {
 	f.Write([]byte("Time:" + time.Now().String() + "\n"))
 	f.Write([]byte(user))
 	f.Write([]byte(name))
-	dbname, _, _, err := getDbcredentials(user, name)
 
+	err = mydumper(user, name, "")
 	if err != nil {
 		f.Write([]byte(err.Error()))
-		f.Write([]byte("Invalid wp-config file configuration\n"))
-		f.Write([]byte("Backup Failed"))
-		f.Close()
-		cronBusy = false
-		return
-	}
-	rootPass, err := getMariadbRootPass()
-	if err != nil {
-		f.Write([]byte(err.Error()))
-		f.Write([]byte("Root password not found\n"))
-		f.Write([]byte("Backup Failed"))
-		f.Close()
-		cronBusy = false
-		return
-	}
-	dbout, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("mydumper -u root -p %s -B %s -o /home/%s/%s/private/DatabaseBackup/", rootPass, dbname, user, name)).CombinedOutput()
-	if err != nil {
-		f.Write([]byte("Failed to create database backup"))
-		f.Write([]byte(string(dbout)))
 		f.Write([]byte("Backup Process Failed"))
 		f.Close()
 		cronBusy = false
@@ -368,7 +347,7 @@ func getLatest(backup Backup) int {
 func ondemadBackup(c echo.Context) error {
 	name := c.Param("name")
 	user := c.Param("user")
-	err := takeLocalOndemandBackup(name, user, false)
+	err := takeLocalOndemandBackup(name, user)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, err)
 	}
@@ -379,7 +358,7 @@ func ondemadBackup(c echo.Context) error {
 	return c.JSON(http.StatusOK, list)
 }
 
-func takeLocalOndemandBackup(name string, user string, staging bool) error {
+func takeLocalOndemandBackup(name string, user string) error {
 	for cronBusy {
 		time.Sleep(time.Millisecond * 100)
 	}
@@ -390,31 +369,11 @@ func takeLocalOndemandBackup(name string, user string, staging bool) error {
 	}
 	f.Write([]byte("\n--------------------------------------------------------------------------------------\n"))
 	f.Write([]byte("ONDEMAND Backup Process started\n"))
-	if staging {
-		f.Write([]byte("Process started for crceating staging site\n"))
-	}
 	f.Write([]byte("Time:" + time.Now().String() + "\n"))
-	dbname, _, _, err := getDbcredentials(user, name)
-	if err != nil {
-		f.Write([]byte("Invalid wp-config file configuration\n"))
-		f.Write([]byte("Backup Failed"))
-		f.Close()
-		cronBusy = false
-		return errors.New("invalid wp-config file")
-	}
-	rootPass, err := getMariadbRootPass()
-	if err != nil {
-		f.Write([]byte(err.Error()))
-		f.Write([]byte("Root password not found\n"))
-		f.Write([]byte("Backup Failed"))
-		f.Close()
-		cronBusy = false
-		return errors.New("Root password not found")
-	}
-	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("mydumper -u root -p %s -B %s -o /home/%s/%s/private/DatabaseBackup/", rootPass, dbname, user, name)).CombinedOutput()
+	err = mydumper(user, name, "")
 	if err != nil {
 		f.Write([]byte("Failed to create database backup"))
-		f.Write([]byte(string(out)))
+		f.Write([]byte(err.Error()))
 		f.Write([]byte("Backup Process Failed"))
 		f.Close()
 		cronBusy = false
@@ -422,7 +381,7 @@ func takeLocalOndemandBackup(name string, user string, staging bool) error {
 	}
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("rm /home/%s/%s/private/DatabaseBackup/metadata", user, name)).Output()
 
-	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia --config-file=/var/Backup/config/ondemand/ondemand.config snapshot create /home/%s/%s", user, name)).CombinedOutput()
+	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia --config-file=/var/Backup/config/ondemand/ondemand.config snapshot create /home/%s/%s", user, name)).CombinedOutput()
 
 	if err != nil {
 		f.Write([]byte("Cannot create backup"))
@@ -451,8 +410,7 @@ func takeLocalOndemandBackup(name string, user string, staging bool) error {
 
 }
 
-//not yet finished
-func takeSystemBackup(name string, user string) error {
+func takeSystemBackup(name string, user string, Description string) error {
 	for cronBusy {
 		time.Sleep(time.Millisecond * 100)
 	}
@@ -465,27 +423,10 @@ func takeSystemBackup(name string, user string) error {
 	f.Write([]byte("System Backup Process started\n"))
 
 	f.Write([]byte("Time:" + time.Now().String() + "\n"))
-	dbname, _, _, err := getDbcredentials(user, name)
-	if err != nil {
-		f.Write([]byte("Invalid wp-config file configuration\n"))
-		f.Write([]byte("Backup Failed"))
-		f.Close()
-		cronBusy = false
-		return errors.New("invalid wp-config file")
-	}
-	rootPass, err := getMariadbRootPass()
-	if err != nil {
-		f.Write([]byte(err.Error()))
-		f.Write([]byte("Root password not found\n"))
-		f.Write([]byte("Backup Failed"))
-		f.Close()
-		cronBusy = false
-		return errors.New("root password not found")
-	}
-	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("mydumper -u root -p %s -B %s -o /home/%s/%s/private/DatabaseBackup/", rootPass, dbname, user, name)).CombinedOutput()
+	err = mydumper(user, name, "")
 	if err != nil {
 		f.Write([]byte("Failed to create database backup"))
-		f.Write([]byte(string(out)))
+		f.Write([]byte(err.Error()))
 		f.Write([]byte("Backup Process Failed"))
 		f.Close()
 		cronBusy = false
@@ -493,7 +434,7 @@ func takeSystemBackup(name string, user string) error {
 	}
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("rm /home/%s/%s/private/DatabaseBackup/metadata", user, name)).Output()
 
-	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia repository connect filesystem --path=/var/Backup/ondemand --password=kopia ; kopia snapshot create /home/%s/%s", user, name)).CombinedOutput()
+	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia --config-file=/var/Backup/config/system/system.config snapshot create /home/%s/%s --description='%s' ", user, name, Description)).CombinedOutput()
 
 	if err != nil {
 		f.Write([]byte("Cannot create backup"))
@@ -543,21 +484,21 @@ func LocalBackupsList(name string, user string) (LocalBackup, error) {
 	if err != nil {
 		cronBusy = false
 
-		return LocalBackup{}, errors.New("Cannot list backups")
+		return LocalBackup{}, errors.New("cannot list backups")
 	}
 
 	automatic, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia --config-file=/var/Backup/config/automatic/automatic.config snapshot list /home/%s/%s --json", user, name)).CombinedOutput()
 	if err != nil {
 		cronBusy = false
 
-		return LocalBackup{}, errors.New("Cannot list backups")
+		return LocalBackup{}, errors.New("cannot list backups")
 	}
 
 	system, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia --config-file=/var/Backup/config/system/system.config snapshot list /home/%s/%s --json", user, name)).CombinedOutput()
 	if err != nil {
 		cronBusy = false
 
-		return LocalBackup{}, errors.New("Cannot list backups")
+		return LocalBackup{}, errors.New("cannot list backups")
 	}
 	list := new(LocalBackup)
 	json.Unmarshal(ondemand, &list.Ondemand)
@@ -590,7 +531,7 @@ func restoreBackup(name string, user string, id string, restoreType string, mode
 	cronBusy = true
 	rootPass, err := getMariadbRootPass()
 	if err != nil {
-		return errors.New("Root password not found")
+		return errors.New("root password not found")
 	}
 	if restoreType == "both" {
 		out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia --config-file=/var/Backup/config/%[1]s/%[1]s.config restore %[2]s /home/%[3]s/%[4]s", mode, id, user, name)).CombinedOutput()
@@ -695,4 +636,28 @@ func previousBackupExecuted(t string, frequency string) bool {
 	}
 	log.Print("No case match")
 	return false
+}
+
+func mydumper(User string, Name string, Tables string) error {
+	rootPass, err := getMariadbRootPass()
+	if err != nil {
+		return errors.New(err.Error())
+	}
+	dbname, _, _, err := getDbcredentials(User, Name)
+	if err != nil {
+		return errors.New(err.Error())
+	}
+	if Tables == "" {
+
+		dbout, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("mydumper -u root -p %s -B %s -o /home/%s/%s/private/DatabaseBackup/", rootPass, dbname, User, Name)).CombinedOutput()
+		if err != nil {
+			return errors.New(string(dbout))
+		}
+	} else {
+		dbout, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("mydumper -u root -p %s -B %s -o /home/%s/%s/private/DatabaseBackup/ -T %s", rootPass, dbname, User, Name, Tables)).CombinedOutput()
+		if err != nil {
+			return errors.New(string(dbout))
+		}
+	}
+	return nil
 }

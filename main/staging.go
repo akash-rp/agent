@@ -25,16 +25,12 @@ func createStaging(c echo.Context) error {
 	logFile.Write([]byte("Starting Staging process\n"))
 	logFile.Write([]byte("Time:" + time.Now().String() + "\n"))
 	logFile.Write([]byte("Taking ondemad backup of Live site\n"))
-	err := takeLocalOndemandBackup(Name, User, true)
+	err := takeSystemBackup(Name, User, "Create Staging site")
 	if err != nil {
 		LogError(logFile, "Error occured while taking backup", nil, "Staging")
 		return c.JSON(http.StatusBadRequest, "Backup process Failed")
 	}
-	rootPass, err := getMariadbRootPass()
-	if err != nil {
-		LogError(logFile, "Failed to get root password", nil, "staging")
-		return c.JSON(400, "Root password not found")
-	}
+
 	logFile.Write([]byte(fmt.Sprintf("Copying file and folders from %s to %s_Staging\n", Name, Name)))
 	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("cp -r -p /home/%s/%s /home/%s/%s_Staging", User, Name, User, Name)).CombinedOutput()
 	if err != nil {
@@ -42,12 +38,11 @@ func createStaging(c echo.Context) error {
 		return c.JSON(echo.ErrBadRequest.Code, "Failed to copy files")
 	}
 	logFile.Write([]byte("Taking Database Dump\n"))
-	dbname, _, _, err := getDbcredentials(User, Name)
+	rootPass, err := getMariadbRootPass()
 	if err != nil {
-		LogError(logFile, "Invalid wp-config file configuration", nil, "Staging")
-		return errors.New("invalid wp-config file")
+		LogError(logFile, "", []byte(err.Error()), "staging")
 	}
-	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("mydumper -u root -p %s -B %s -o /home/%s/%s/private/DatabaseBackup/", rootPass, dbname, User, Name)).CombinedOutput()
+	err = mydumper(User, Name, "")
 	if err != nil {
 		deleteDatabaseDump(User, Name)
 		LogError(logFile, "Failed to create database dump", out, "Staging")
@@ -176,7 +171,7 @@ func syncChanges(c echo.Context) error {
 	logFile.Write([]byte("Time:" + time.Now().String() + "\n"))
 	logFile.Write([]byte(fmt.Sprintf("Taking ondemad backup of %s site\n", sync.To.Name)))
 	//First take backup of toSite
-	err := takeLocalOndemandBackup(sync.To.Name, sync.To.User, false)
+	err := takeSystemBackup(sync.To.Name, sync.To.User, "Staging Sync process")
 	latestBackupByte, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia repository connect filesystem --path=/var/Backup/ondemand ;  kopia snapshot list /home/%s/%s/ -l | tail -1 | awk '{print $4}'", sync.To.User, sync.To.Name)).Output()
 	latestBackup := string(latestBackupByte)
 	if err != nil {
@@ -281,20 +276,15 @@ func syncCopyFiles(sync SyncChanges, logFile *os.File) error {
 func syncCopyDb(sync SyncChanges, logFile *os.File, shouldRestore *bool) error {
 
 	logFile.Write([]byte("Taking Database Dump\n"))
-	dbname, _, _, err := getDbcredentials(sync.From.User, sync.From.Name)
-	if err != nil {
-		LogError(logFile, "Invalid wp-config file configuration", nil, "Sync")
-		return errors.New("invalid wp-config file")
-	}
 	rootPass, err := getMariadbRootPass()
 	if err != nil {
-		LogError(logFile, "Root password not found", nil, "Sync")
+		LogError(logFile, "", []byte(err.Error()), "Sync")
 		return errors.New("root password not found")
 	}
 	if sync.AllSelected || sync.DbType == "full" {
-		out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("mydumper -u root -p %s -B %s -o /home/%s/%s/private/DatabaseBackup/", rootPass, dbname, sync.From.User, sync.From.Name)).CombinedOutput()
+		err := mydumper(sync.From.User, sync.From.Name, "")
 		if err != nil {
-			LogError(logFile, "Failed to create database dump", out, "Sync")
+			LogError(logFile, "Failed to create database dump", []byte(err.Error()), "Sync")
 			return errors.New("database Dump error")
 		}
 	} else {
@@ -310,9 +300,9 @@ func syncCopyDb(sync SyncChanges, logFile *os.File, shouldRestore *bool) error {
 			dumpTable = dumpTable + table + ","
 			logFile.Write([]byte(table + "\t"))
 		}
-		out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("mydumper -u root -p %s -B %s -o /home/%s/%s/private/DatabaseBackup/ -T %s", rootPass, dbname, sync.From.User, sync.From.Name, dumpTable)).CombinedOutput()
+		err := mydumper(sync.From.User, sync.From.Name, dumpTable)
 		if err != nil {
-			LogError(logFile, "Failed to create database dump", out, "Sync")
+			LogError(logFile, "Failed to create database dump", []byte(err.Error()), "Sync")
 			return errors.New("database Dump error")
 		}
 	}

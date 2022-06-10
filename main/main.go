@@ -100,6 +100,7 @@ func main() {
 	e.POST("/site/auth/delete/:name", deleteSiteAuthentication)
 	e.POST("/site/fixPermission", fixFilePermission)
 	e.POST("/searchAndReplace", searchAndReplace)
+	e.POST("/site/clone", siteCloneRequest)
 	e.Logger.Fatal(e.Start(":8081"))
 }
 

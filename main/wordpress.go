@@ -23,6 +23,10 @@ func wpAdd(c echo.Context) error {
 	c.Bind(&wp)
 	f, err := os.OpenFile("/usr/Hosting/error.log", os.O_APPEND|os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
+		c.JSON(400, "Failed to open log file")
+	}
+	defer f.Close()
+	if err != nil {
 		return c.JSON(404, err)
 	}
 
@@ -66,16 +70,13 @@ func wpAdd(c echo.Context) error {
 	}
 
 	// Create random number to concate with appName for prevention of Duplicity. Create rand password for DB password and assign them to DB struct
-	randInt, _ := password.Generate(5, 5, 0, false, true)
-	pass, _ := password.Generate(32, 20, 0, false, true)
-	dbCred := db{fmt.Sprintf("%s_%s", wp.AppName, randInt), fmt.Sprintf("%s_%s", wp.AppName, randInt), pass}
-
-	err = createDatabase(dbCred, f)
+	dbCred, err := createDatabase(wp.AppName)
 	if err != nil {
 		result := &errcode{
 			Code:    103,
 			Message: "Cannot create database",
 		}
+		f.Write([]byte(err.Error()))
 		return c.JSON(http.StatusBadRequest, result)
 	}
 
@@ -223,7 +224,7 @@ func wpDelete(c echo.Context) error {
 	// exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia repository connect filesystem --path=/var/Backup/ondemand --password=kopia ; kopia snapshot delete --all-snapshots-for-source /home/%s/%s --delete", user, name)).Output()
 	deleteSiteFromJSON(wp.Main.Name)
 	log.Print("Checking if staging is true")
-	log.Print(fmt.Sprintf("Staging is %t", wp.IsStaging))
+	log.Printf("Staging is %t", wp.IsStaging)
 	if wp.IsStaging {
 		deleteStagingSiteInternal(wp.Staging.Name, wp.Staging.User)
 	} else {
@@ -236,48 +237,37 @@ func wpDelete(c echo.Context) error {
 	return c.String(http.StatusOK, "Delete success")
 }
 
-func createDatabase(d db, f *os.File) error {
+func createDatabase(AppName string) (db, error) {
+	randInt, _ := password.Generate(5, 5, 0, false, true)
+	pass, _ := password.Generate(32, 20, 0, false, true)
+	d := db{fmt.Sprintf("%s_%s", AppName, randInt), fmt.Sprintf("%s_%s", AppName, randInt), pass}
 	rootPassword, err := getMariadbRootPass()
 	if err != nil {
-		f.Write([]byte(rootPassword))
-		f.Write([]byte(err.Error()))
-		f.Close()
-		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+		return db{}, echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -uroot -p%s -e \"CREATE DATABASE %s;\"", rootPassword, d.Name)).CombinedOutput()
 	if err != nil {
-		write, _ := json.MarshalIndent(d, "", "  ")
-		f.Write(write)
-		f.Write(out)
-		f.Close()
-		return echo.NewHTTPError(http.StatusBadRequest, string(out))
+		return db{}, errors.New(string(out))
 	}
 	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -uroot -p%s -e \"CREATE USER '%s'@'localhost' IDENTIFIED VIA mysql_native_password USING PASSWORD('%s');\"", rootPassword, d.User, d.Password)).CombinedOutput()
 	if err != nil {
-		write, _ := json.MarshalIndent(d, "", "  ")
-		f.Write(write)
-		f.Write(out)
-		f.Close()
-		return echo.NewHTTPError(http.StatusBadRequest, string(out))
+		return db{}, errors.New(string(out))
 	}
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -uroot -p%s -e \"GRANT ALL PRIVILEGES ON %s.* TO '%s'@'localhost';\"", rootPassword, d.Name, d.User)).CombinedOutput()
-	if err != nil {
-		write, _ := json.MarshalIndent(d, "", "  ")
-		f.Write(write)
-		f.Write(out)
-		f.Close()
-		return echo.NewHTTPError(http.StatusBadRequest, err)
-	}
+
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("mysql -uroot -p%s -e 'FLUSH PRIVILEGES;'", rootPassword)).Output()
 
-	return nil
+	return d, nil
 }
 
 func getPluginsList(c echo.Context) error {
 	user := c.Param("user")
 	name := c.Param("name")
-	plugin, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %[1]s -i /usr/Hosting/wp-cli plugin list --fields=title,name,update,update_version,status,version --format=json --path='/home/%[1]s/%[2]s/public'", user, name)).CombinedOutput()
+	plugin, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %[1]s -i /usr/Hosting/wp-cli plugin list --fields=title,name,update,update_version,status,version --format=json --path='/home/%[1]s/%[2]s/public'", user, name)).Output()
+	fmt.Println(string(plugin))
 	if err != nil {
+		fmt.Println(err.Error())
+		fmt.Println(string(plugin))
 		return c.JSON(404, "Cannot get plugins list")
 	}
 	var plugins []interface{}
@@ -293,6 +283,7 @@ func getThemesList(c echo.Context) error {
 	user := c.Param("user")
 	name := c.Param("name")
 	theme, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %[1]s -i /usr/Hosting/wp-cli theme list --format=json --path='/home/%[1]s/%[2]s/public' --fields=title,name,update,update_version,status,version", user, name)).Output()
+	fmt.Println(string(theme))
 	if err != nil {
 		return c.JSON(404, "Cannot get themes list")
 	}
@@ -312,34 +303,28 @@ func updatePluginsThemes(c echo.Context) error {
 	name := c.Param("name")
 	var body = new(PluginsThemesOperation)
 	c.Bind(&body)
-	result := make(map[string]int)
 	for _, item := range body.Plugins {
 		switch item.Operation {
 		case "update":
-			_, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %[1]s -i /usr/Hosting/wp-cli plugin update %[3]s --path='/home/%[1]s/%[2]s/public'", user, name, item.Name)).Output()
+			err := takeSystemBackup(name, user, fmt.Sprintf("%s Plugin Update", item.Name))
 			if err != nil {
-				result[item.Name] = 0
-			} else {
-				result[item.Name] = 1
-
+				return c.NoContent(400)
+			}
+			_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %[1]s -i /usr/Hosting/wp-cli plugin update %[3]s --path='/home/%[1]s/%[2]s/public'", user, name, item.Name)).Output()
+			if err != nil {
+				return c.NoContent(400)
 			}
 
 		case "activate":
 			_, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %[1]s -i /usr/Hosting/wp-cli plugin activate %[3]s --path='/home/%[1]s/%[2]s/public'", user, name, item.Name)).Output()
 			if err != nil {
-				result[item.Name] = 0
-			} else {
-				result[item.Name] = 1
-
+				return c.NoContent(400)
 			}
 
 		case "deactivate":
 			_, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %[1]s -i /usr/Hosting/wp-cli plugin deactivate %[3]s --path='/home/%[1]s/%[2]s/public'", user, name, item.Name)).Output()
 			if err != nil {
-				result[item.Name] = 0
-			} else {
-				result[item.Name] = 1
-
+				return c.NoContent(400)
 			}
 
 		}
@@ -347,26 +332,30 @@ func updatePluginsThemes(c echo.Context) error {
 	for _, item := range body.Themes {
 		switch item.Operation {
 		case "update":
-
-			_, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %[1]s -i /usr/Hosting/wp-cli theme update %[3]s --path='/home/%[1]s/%[2]s/public'", user, name, item.Name)).Output()
+			err := takeSystemBackup(name, user, fmt.Sprintf("%s Plugin Update", item.Name))
 			if err != nil {
-				result[item.Name] = 0
-			} else {
-				result[item.Name] = 1
-
+				return c.NoContent(400)
+			}
+			_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %[1]s -i /usr/Hosting/wp-cli theme update %[3]s --path='/home/%[1]s/%[2]s/public'", user, name, item.Name)).Output()
+			if err != nil {
+				return c.NoContent(400)
 			}
 
 		case "activate":
 			_, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %[1]s -i /usr/Hosting/wp-cli theme activate %[3]s --path='/home/%[1]s/%[2]s/public'", user, name, item.Name)).Output()
 			if err != nil {
-				result[item.Name] = 0
-			} else {
-				result[item.Name] = 1
+				return c.NoContent(400)
 			}
 		}
 	}
+	if len(body.Plugins) > 0 {
+		return getPluginsList(c)
+	} else if len(body.Themes) > 0 {
+		return getThemesList(c)
+	} else {
+		return c.NoContent(404)
+	}
 
-	return c.JSON(200, result)
 }
 
 func changeOwnership(c echo.Context) error {
@@ -423,9 +412,9 @@ func changeOwnership(c echo.Context) error {
 	}
 	updateLocalBackup(req.Name, req.NewUser, &req.Backup)
 	//change vhroot path in main.conf
-	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i '/^#/!s/vhRoot.*/vhRoot \\/home\\/%[1]s\\/%[2]s/' /usr/local/lsws/conf/vhosts/%[2]s.d/main.conf", req.NewUser, req.Name)).CombinedOutput()
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i '/^#/!s/vhRoot.*/vhRoot \\/home\\/%[1]s\\/%[2]s/' /usr/local/lsws/conf/vhosts/%[2]s.d/main.conf", req.NewUser, req.Name)).CombinedOutput()
 	//change extUser and extgroup in extphp.conf
-	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i '/^#/!s/extUser.*/extUser %[1]s/' /usr/local/lsws/conf/vhosts/%[2]s.d/modules/extphp.conf ; sed -i '/^#/!s/extGroup.*/extGroup %[1]s/' /usr/local/lsws/conf/vhosts/%[2]s.d/modules/extphp.conf", req.NewUser, req.Name)).CombinedOutput()
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i '/^#/!s/extUser.*/extUser %[1]s/' /usr/local/lsws/conf/vhosts/%[2]s.d/modules/extphp.conf ; sed -i '/^#/!s/extGroup.*/extGroup %[1]s/' /usr/local/lsws/conf/vhosts/%[2]s.d/modules/extphp.conf", req.NewUser, req.Name)).CombinedOutput()
 
 	//change user in config.json
 	for i, site := range obj.Sites {
@@ -560,29 +549,32 @@ func getDbcredentials(User string, Name string) (dbname string, dbuser string, p
 	dbOut := strings.TrimSuffix(string(db), "\n")
 	dbnameArray := strings.Split(dbOut, "\n")
 	if len(dbnameArray) > 1 || len(dbnameArray) == 0 {
-		return "", "", "", errors.New("Invalid wp-config file")
+		return "", "", "", errors.New("invalid wp-config file")
 	}
 	db, _ = exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/public/wp-config.php | grep DB_USER | cut -d \\' -f 4", User, Name)).Output()
 	dbUser := strings.TrimSuffix(string(db), "\n")
 	dbuserArray := strings.Split(dbUser, "\n")
 	if len(dbuserArray) > 1 || len(dbuserArray) == 0 {
-		return "", "", "", errors.New("Invalid wp-config file")
+		return "", "", "", errors.New("invalid wp-config file")
 	}
 	db, _ = exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /home/%s/%s/public/wp-config.php | grep DB_PASSWORD | cut -d \\' -f 4", User, Name)).Output()
 	dbpassword := strings.TrimSuffix(string(db), "\n")
 	dbpasswordArray := strings.Split(dbpassword, "\n")
 	if len(dbpasswordArray) > 1 || len(dbpasswordArray) == 0 {
-		return "", "", "", errors.New("Invalid wp-config file")
+		return "", "", "", errors.New("invalid wp-config file")
 	}
 	return dbnameArray[0], dbuserArray[0], dbpasswordArray[0], nil
 }
 
 func getMariadbRootPass() (password string, err error) {
 	out, err := exec.Command("/bin/bash", "-c", "grep 'root' /etc/mysql/mariadb.conf.d/root.env").Output()
+	if err != nil {
+		return "", errors.New("root File to found")
+	}
 	credentials := strings.Split(strings.TrimSuffix(string(out), "\n"), ":")
 	if credentials[0] == "root" {
 		password := credentials[1]
 		return password, nil
 	}
-	return "", errors.New("Failed to get root password")
+	return "", errors.New("failed to get root password")
 }

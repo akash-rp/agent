@@ -65,9 +65,9 @@ func getPHPSettings(c echo.Context) error {
 		log.Print(err.Error())
 		return c.NoContent(400)
 	}
-	type config struct {
-		MaxConnections int `json:"maxConn"`
-	}
+	// type config struct {
+	// 	MaxConnections int `json:"maxConn"`
+	// }
 	// w := bufio.NewWriter(os.Stdout)
 	requiredOptions := []string{"maxConns", "env", "initTimeout", "retryTimeout", "instances"}
 	scanner := bufio.NewScanner(file)
@@ -110,7 +110,7 @@ func contains(s []string, str string) bool {
 func updatePHPsettings(c echo.Context) error {
 	name := c.Param("name")
 	type Settings struct {
-		User     string `json:user`
+		User     string `json:"user"`
 		Settings struct {
 			PhpLsapiChildren       int `json:"PHP_LSAPI_CHILDREN"`
 			PhpLsapiMaxIdle        int `json:"PHP_LSAPI_MAX_IDLE"`

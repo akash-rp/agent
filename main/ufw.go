@@ -60,7 +60,7 @@ func deleteUfwRules(c echo.Context) error {
 
 type addRules struct {
 	Source struct {
-		Type   string `json:""type`
+		Type   string `json:"type"`
 		Ip     string `json:"ip"`
 		Subnet struct {
 			Ip     string `json:"ip"`

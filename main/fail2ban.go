@@ -30,7 +30,7 @@ func getBannedIpList(c echo.Context) error {
 
 func unbanIp(c echo.Context) error {
 	type IP struct {
-		Ip string `json:ip`
+		Ip string `json:"ip"`
 	}
 	ip := new(IP)
 	c.Bind(&ip)
