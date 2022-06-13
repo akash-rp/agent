@@ -136,3 +136,8 @@ func serverStats(c echo.Context) error {
 	}
 	return c.JSON(http.StatusOK, m)
 }
+
+func linuxCommand(cmd string) ([]byte, error) {
+	out, err := exec.Command("/bin/bash", "-c", cmd).CombinedOutput()
+	return out, err
+}

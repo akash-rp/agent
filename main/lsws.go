@@ -60,6 +60,29 @@ phpIniOverride{
     php_value newrelic.enabled false
 }`))
 	file.Close()
+
+	err = os.WriteFile(fmt.Sprintf("/usr/local/lsws/conf/vhosts/%s.d/modules/context.conf", wp.AppName), []byte(fmt.Sprintf(`
+	context / {
+		location              $DOC_ROOT
+		allowBrowse             1		
+		addDefaultCharset       off		
+		accessControl  {
+		  allow                 *
+		}
+		include /usr/local/lsws/conf/vhosts/%s.d/modules/rewrite.conf
+	}
+	`, wp.AppName)), 0640)
+	if err != nil {
+		return errors.New("error writing context file")
+	}
+	if err := os.WriteFile(fmt.Sprintf("/usr/local/lsws/conf/vhosts/%s.d/modules/rewrite.conf", wp.AppName), []byte(`
+	rewrite {
+		enable 			 1
+		autoLoadHtaccess 1
+	}
+	`), 0640); err != nil {
+		return errors.New("error writing rewrite conf")
+	}
 	if err := os.Chown(fmt.Sprintf("%s/%s.d/modules/extphp.conf", RootPath, wp.AppName), userID, grpId); err != nil {
 		return errors.New("extphp permission error")
 	}
@@ -68,6 +91,12 @@ phpIniOverride{
 	}
 	if err := os.Chown(fmt.Sprintf("%s/%s.d/main.conf", RootPath, wp.AppName), userID, grpId); err != nil {
 		return errors.New("main conf permission error")
+	}
+	if err := os.Chown(fmt.Sprintf("%s/%s.d/modules/rewrite.conf", RootPath, wp.AppName), userID, grpId); err != nil {
+		return errors.New("rewrite conf permission error")
+	}
+	if err := os.Chown(fmt.Sprintf("%s/%s.d/modules/context.conf", RootPath, wp.AppName), userID, grpId); err != nil {
+		return errors.New("context conf permission error")
 	}
 	defer exec.Command("/bin/bash", "-c", fmt.Sprintf("chown -R nobody:nogroup %s/%s.*", RootPath, wp.AppName)).Output()
 	defer exec.Command("/bin/bash", "-c", "killall lsphp").Output()

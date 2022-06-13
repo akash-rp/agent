@@ -190,7 +190,7 @@ func wpAdd(c echo.Context) error {
 	}
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("mkdir -p /var/logs/Hosting/%s", wp.AppName))
 
-	err = addSiteToJSON(*wp, "live")
+	err = addSiteToJSON(wp.AppName, wp.UserName, wp.Domain.Url, "live")
 	if err != nil {
 		result := &errcode{
 			Code:    109,
@@ -457,24 +457,15 @@ func addSiteAuthentication(c echo.Context) error {
 		userDB  {
 		  location              /usr/local/lsws/conf/vhosts/%s.d/userdb
 		}
-	}
-	  
-	context / {
-		location              $DOC_ROOT
-		allowBrowse             1
-		realm                   test
-		addDefaultCharset       off
-		authName                Protected
-		accessControl  {
-		  allow                 *
-		}
-	}`, req.Name)
+	}	  
+	`, req.Name)
 	err = os.WriteFile(fmt.Sprintf("/usr/local/lsws/conf/vhosts/%s.d/modules/siteauth.conf", req.Name), []byte(realm), 0660)
 	if err != nil {
 		log.Println(err.Error())
 
 		return c.JSON(400, "Failed to write realm file")
 	}
+	linuxCommand(fmt.Sprintf("sed -i 's/.*allowBrowse.*/&\n\trealm                   test/' /usr/local/lsws/conf/vhosts/%s.d/modules/context.conf", req.Name))
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("chown nobody:nogroup /usr/local/lsws/conf/vhosts/%s.d/modules/siteauth.conf", req.Name)).Output()
 	defer exec.Command("/bin/bash", "-c", "service lsws reload").Output()
 	return c.NoContent(200)
@@ -483,6 +474,7 @@ func addSiteAuthentication(c echo.Context) error {
 func deleteSiteAuthentication(c echo.Context) error {
 	name := c.Param("name")
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("rm /usr/local/lsws/conf/vhosts/%[1]s.d/userdb ; rm /usr/local/lsws/conf/vhosts/%[1]s.d/modules/siteauth.conf", name)).Output()
+	linuxCommand(fmt.Sprintf("sed -i '/realm/d' /usr/local/lsws/conf/vhosts/%s.d/modules/context.conf", name))
 	defer exec.Command("/bin/bash", "-c", "service lsws reload").Output()
 	return c.NoContent(200)
 }

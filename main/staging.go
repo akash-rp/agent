@@ -104,7 +104,7 @@ func createStaging(c echo.Context) error {
 		return c.JSON(echo.ErrBadRequest.Code, "Failed to add vhost")
 	}
 	logFile.Write([]byte("Adding site to proxy\n"))
-	err = addSiteToJSON(lsws, "staging")
+	err = addSiteToJSON(lsws.AppName, lsws.UserName, lsws.Domain.Url, "staging")
 	if err != nil {
 		LogError(logFile, "Failed to add site", out, "Staging")
 		return c.JSON(echo.ErrBadRequest.Code, "Failed to add site to proxy")

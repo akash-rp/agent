@@ -9,11 +9,11 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-func addSiteToJSON(wp wpadd, siteType string) error {
-	newSite := Site{Name: wp.AppName, Cache: "off", User: wp.UserName, Type: siteType}
+func addSiteToJSON(AppName string, UserName string, url string, siteType string) error {
+	newSite := Site{Name: AppName, Cache: "off", User: UserName, Type: siteType}
 	newSite.AliasDomain = []DomainJSON{}
 
-	newSite.PrimaryDomain = DomainJSON{Url: wp.Domain.Url, WildCard: false}
+	newSite.PrimaryDomain = DomainJSON{Url: url, WildCard: false}
 	obj.Sites = append(obj.Sites, newSite)
 	back, _ := json.MarshalIndent(obj, "", "  ")
 	ioutil.WriteFile("/usr/Hosting/config.json", back, 0700)

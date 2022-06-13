@@ -55,9 +55,9 @@ func update7G(c echo.Context) error {
 			return c.JSON(400, "Unable to open file")
 		}
 		file.Write([]byte(`
-Rewrite {
-	enable 1
-	AutoLoadHtaccess 1
+rewrite {
+	enable 			 1
+	autoLoadHtaccess 1
 }`))
 		file.Close()
 		defer exec.Command("/bin/bash", "-c", "service lsws reload").Output()

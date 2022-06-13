@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"os/user"
 
 	"github.com/labstack/echo/v4"
@@ -43,19 +42,19 @@ func siteClone(data Clone) (db, error) {
 		return db{}, errors.New("mydumper error")
 	}
 	//create new directory for clone site in lsws
-	_, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("mkdir /usr/local/lsws/conf/vhosts/%s.d", data.Clone.Name)).CombinedOutput()
+	_, err = linuxCommand(fmt.Sprintf("mkdir /usr/local/lsws/conf/vhosts/%s.d", data.Clone.Name))
 	if err != nil {
 		return db{}, errors.New("cannot create folder is lsws")
 	}
 
 	//copy lsws config of original site to clone site
-	exec.Command("/bin/bash", "-c", fmt.Sprintf("cp -r /usr/local/lsws/conf/vhosts/%s.d/* /usr/local/lsws/conf/vhosts/%s.d/", data.Original.Name, data.Clone.Name)).Output()
+	_, err = linuxCommand(fmt.Sprintf("cp -r /usr/local/lsws/conf/vhosts/%s.d/* /usr/local/lsws/conf/vhosts/%s.d/", data.Original.Name, data.Clone.Name))
 	if err != nil {
 		return db{}, errors.New("cannot cp config files")
 	}
 
 	//remove domains files in clone site conf
-	exec.Command("/bin/bash", "-c", fmt.Sprintf("rm /usr/local/lsws/conf/vhosts/%s.d/domain/*", data.Clone.Name)).Output()
+	_, err = linuxCommand(fmt.Sprintf("rm /usr/local/lsws/conf/vhosts/%s.d/domain/*", data.Clone.Name))
 	if err != nil {
 		return db{}, errors.New("cannot remove domain files")
 	}
@@ -71,31 +70,31 @@ func siteClone(data Clone) (db, error) {
 	}
 
 	//replace site name and user to clone site in main.conf
-	if _, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i 's/%[1]s/%[2]s/g' /usr/local/lsws/conf/vhosts/%[2]s.d/main.conf", data.Original.Name, data.Clone.Name)).CombinedOutput(); err != nil {
+	if _, err := linuxCommand(fmt.Sprintf("sed -i 's/%[1]s/%[2]s/g' /usr/local/lsws/conf/vhosts/%[2]s.d/main.conf", data.Original.Name, data.Clone.Name)); err != nil {
 		return db{}, errors.New("failed to replace site name")
 	}
-	if _, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i 's/%[1]s/%[2]s/g' /usr/local/lsws/conf/vhosts/%[3]s.d/main.conf", data.Original.User, data.Clone.User, data.Clone.Name)).CombinedOutput(); err != nil {
+	if _, err := linuxCommand(fmt.Sprintf("sed -i 's/%[1]s/%[2]s/g' /usr/local/lsws/conf/vhosts/%[3]s.d/main.conf", data.Original.User, data.Clone.User, data.Clone.Name)); err != nil {
 		return db{}, errors.New("failed to replace site name")
 	}
 
 	//replace site name and user to clone site in extphp
-	if _, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i 's/%[1]s/%[2]s/g' /usr/local/lsws/conf/vhosts/%[2]s.d/modules/extphp.conf", data.Original.Name, data.Clone.Name)).CombinedOutput(); err != nil {
+	if _, err := linuxCommand(fmt.Sprintf("sed -i 's/%[1]s/%[2]s/g' /usr/local/lsws/conf/vhosts/%[2]s.d/modules/extphp.conf", data.Original.Name, data.Clone.Name)); err != nil {
 		return db{}, errors.New("failed to replace site name in extphp")
 	}
-	if _, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i 's/%[1]s/%[2]s/g' /usr/local/lsws/conf/vhosts/%[3]s.d/modules/extphp.conf", data.Original.User, data.Clone.User, data.Clone.Name)).CombinedOutput(); err != nil {
+	if _, err := linuxCommand(fmt.Sprintf("sed -i 's/%[1]s/%[2]s/g' /usr/local/lsws/conf/vhosts/%[3]s.d/modules/extphp.conf", data.Original.User, data.Clone.User, data.Clone.Name)); err != nil {
 		return db{}, errors.New("failed to replace site name in extphp")
 	}
 
 	//check if modsecurity file exists and replace site name in that file
 	if _, err := os.Stat(fmt.Sprintf("/usr/local/lsws/conf/vhosts/%s.d/modules/modsecurity.conf", data.Original.Name)); err == nil {
-		if _, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i 's/%[1]s/%[2]s/g' /usr/local/lsws/conf/vhosts/%[2]s.d/modules/modsecurity.conf", data.Original.Name, data.Clone.Name)).CombinedOutput(); err != nil {
+		if _, err := linuxCommand(fmt.Sprintf("sed -i 's/%[1]s/%[2]s/g' /usr/local/lsws/conf/vhosts/%[2]s.d/modules/modsecurity.conf", data.Original.Name, data.Clone.Name)); err != nil {
 			return db{}, errors.New("failed to replace site name in modsecurity")
 		}
 	}
 
 	//check if modsecurity main.conf file exists and replace site name in that file
 	if _, err := os.Stat(fmt.Sprintf("/usr/local/lsws/conf/vhosts/%s.d/modules/modsecurity.d/main.conf", data.Original.Name)); err == nil {
-		if _, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i 's/%[1]s/%[2]s/g' /usr/local/lsws/conf/vhosts/%[2]s.d/modules/modsecurity.d/main.conf", data.Original.Name, data.Clone.Name)).CombinedOutput(); err != nil {
+		if _, err := linuxCommand(fmt.Sprintf("sed -i 's/%[1]s/%[2]s/g' /usr/local/lsws/conf/vhosts/%[2]s.d/modules/modsecurity.d/main.conf", data.Original.Name, data.Clone.Name)); err != nil {
 			return db{}, errors.New("failed to replace site name in modsecurity")
 		}
 	}
@@ -107,39 +106,47 @@ func siteClone(data Clone) (db, error) {
 	}
 
 	//dump original site database to new clone site
-	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("myloader -u root -p %s -d /home/%s/%s/private/DatabaseBackup -o -B %s", rootPass, data.Original.User, data.Original.Name, dbCred.Name)).CombinedOutput()
+	out, err := linuxCommand(fmt.Sprintf("myloader -u root -p %s -d /home/%s/%s/private/DatabaseBackup -o -B %s", rootPass, data.Original.User, data.Original.Name, dbCred.Name))
+	if err != nil {
+		return db{}, errors.New(string(out))
+	}
+
+	//rewrite domain url to new clone url
+	out, err = linuxCommand(fmt.Sprintf("php /usr/Hosting/script/srdb.cli.php -h localhost -n %s -u root -p %s -s http://%s -r http://%s -x guid -x user_email", dbCred.Name, rootPass, data.Original.Domain, data.Clone.Domain.Url))
 	if err != nil {
 		return db{}, errors.New(string(out))
 	}
 
 	//delete database dump in original site private folder
-	exec.Command("/bin/bash", "-c", fmt.Sprintf("rm -rf /home/%s/%s/private/DatabaseBackup", data.Original.User, data.Original.Name)).Output()
+	linuxCommand(fmt.Sprintf("rm -rf /home/%s/%s/private/DatabaseBackup", data.Original.User, data.Original.Name))
 
 	// check if user exists or not. If not then create a user with home directory
 	_, err = user.Lookup(data.Clone.User)
 	if err != nil {
-		exec.Command("/bin/bash", "-c", fmt.Sprintf("useradd --shell /bin/bash --create-home %s", data.Clone.User)).Output()
+		linuxCommand(fmt.Sprintf("useradd --shell /bin/bash --create-home %s", data.Clone.User))
 	}
 
 	//copy wordpress files from original site to clone site
-	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("cp -r -p /home/%s/%s /home/%s/%s", data.Original.User, data.Original.Name, data.Clone.User, data.Clone.Name)).CombinedOutput()
+	out, err = linuxCommand(fmt.Sprintf("cp -r -p /home/%s/%s /home/%s/%s", data.Original.User, data.Original.Name, data.Clone.User, data.Clone.Name))
 	if err != nil {
 		return db{}, errors.New(string(out))
 	}
 
 	//set db crediantls in clone site wp-config.php
-	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %s -i -- /usr/Hosting/wp-cli config config set DB_NAME %s --path=/home/%s/%s/public/", data.Clone.User, dbCred.Name, data.Clone.User, data.Clone.Name)).CombinedOutput()
+	out, err = linuxCommand(fmt.Sprintf("sudo -u %s -i -- /usr/Hosting/wp-cli config set DB_NAME %s --path=/home/%s/%s/public/", data.Clone.User, dbCred.Name, data.Clone.User, data.Clone.Name))
 	if err != nil {
 		return db{}, errors.New(string(out))
 	}
-	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %s -i -- /usr/Hosting/wp-cli config config set DB_USER %s --path=/home/%s/%s/public/", data.Clone.User, dbCred.User, data.Clone.User, data.Clone.Name)).CombinedOutput()
+	out, err = linuxCommand(fmt.Sprintf("sudo -u %s -i -- /usr/Hosting/wp-cli config set DB_USER %s --path=/home/%s/%s/public/", data.Clone.User, dbCred.User, data.Clone.User, data.Clone.Name))
 	if err != nil {
 		return db{}, errors.New(string(out))
 	}
-	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("sudo -u %s -i -- /usr/Hosting/wp-cli config config set DB_PASSWORD %s --path=/home/%s/%s/public/", data.Clone.User, dbCred.Password, data.Clone.User, data.Clone.Name)).CombinedOutput()
+	out, err = linuxCommand(fmt.Sprintf("sudo -u %s -i -- /usr/Hosting/wp-cli config set DB_PASSWORD %s --path=/home/%s/%s/public/", data.Clone.User, dbCred.Password, data.Clone.User, data.Clone.Name))
 	if err != nil {
 		return db{}, errors.New(string(out))
 	}
 
+	//add site to json
+	addSiteToJSON(data.Clone.Name, data.Clone.User, data.Clone.Domain.Url, "live")
 	return dbCred, nil
 }
