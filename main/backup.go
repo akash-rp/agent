@@ -347,7 +347,11 @@ func getLatest(backup Backup) int {
 func ondemadBackup(c echo.Context) error {
 	name := c.Param("name")
 	user := c.Param("user")
-	err := takeLocalOndemandBackup(name, user)
+	data := new(struct {
+		Tag string `json:"tag"`
+	})
+	c.Bind(&data)
+	err := takeLocalOndemandBackup(name, user, data.Tag)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, err)
 	}
@@ -358,7 +362,7 @@ func ondemadBackup(c echo.Context) error {
 	return c.JSON(http.StatusOK, list)
 }
 
-func takeLocalOndemandBackup(name string, user string) error {
+func takeLocalOndemandBackup(name string, user string, tag string) error {
 	for cronBusy {
 		time.Sleep(time.Millisecond * 100)
 	}
@@ -381,7 +385,7 @@ func takeLocalOndemandBackup(name string, user string) error {
 	}
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("rm /home/%s/%s/private/DatabaseBackup/metadata", user, name)).Output()
 
-	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia --config-file=/var/Backup/config/ondemand/ondemand.config snapshot create /home/%s/%s", user, name)).CombinedOutput()
+	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia --config-file=/var/Backup/config/ondemand/ondemand.config snapshot create /home/%s/%s --description '%s'", user, name, tag)).CombinedOutput()
 
 	if err != nil {
 		f.Write([]byte("Cannot create backup"))
@@ -660,4 +664,22 @@ func mydumper(User string, Name string, Tables string) error {
 		}
 	}
 	return nil
+}
+
+func BackupDownload(c echo.Context) error {
+	mode := c.Param("mode")
+	id := c.Param("id")
+	out, err := linuxCommand(fmt.Sprintf("kopia --config-file=/var/Backup/config/%[1]s/%[1]s.config snapshot restore %[2]s /usr/Hosting/tmp/%[2]s ; cd /usr/Hosting/tmp/ ; zip -r %[2]s.zip %[2]s/ ; cd", mode, id))
+	if err != nil {
+		log.Print(string(out))
+		return c.NoContent(404)
+	}
+	file := fmt.Sprintf("/usr/Hosting/tmp/%s.zip", id)
+
+	err = c.File(file)
+	if err != nil {
+		log.Print(err.Error())
+	}
+	defer linuxCommand(fmt.Sprintf("rm -rf /usr/Hosting/tmp/%s*", id))
+	return c.NoContent(200)
 }

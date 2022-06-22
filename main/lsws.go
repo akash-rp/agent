@@ -196,7 +196,7 @@ func addMainConf(wp wpadd) error {
 		rollingSize 10M
 	}
 	
-	accesslog var/log/hosting/%[2]s/lsws_access.log {
+	accesslog /var/log/hosting/%[2]s/lsws_access.log {
 		useServer 0
 		keepDays 10
 		compressArchive 1
@@ -217,6 +217,26 @@ func addMainConf(wp wpadd) error {
 	scripthandler {
 		add lsapi:lsphp_%[2]s php
 	}
+
+	module cache {
+		internal                1
+		checkPrivateCache       1
+		checkPublicCache        1
+		maxCacheObjSize         10000000
+		maxStaleAge             200
+		qsCache                 1
+		reqCookieCache          1
+		respCookieCache         1
+		ignoreReqCacheCtrl      1
+		ignoreRespCacheCtrl     0
+	  
+		enableCache             0
+		expireInSeconds         3600
+		enablePrivateCache      0
+		privateExpireInSeconds  3600
+		ls_enabled              1
+		storagePath 			$VH_ROOT/lscache
+	  }
 `, wp.UserName, wp.AppName)
 
 	if err := ioutil.WriteFile(fmt.Sprintf("%s/main.conf", path), []byte(second), 0750); err != nil {

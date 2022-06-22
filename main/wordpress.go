@@ -465,7 +465,8 @@ func addSiteAuthentication(c echo.Context) error {
 
 		return c.JSON(400, "Failed to write realm file")
 	}
-	linuxCommand(fmt.Sprintf("sed -i 's/.*allowBrowse.*/&\n\trealm                   test/' /usr/local/lsws/conf/vhosts/%s.d/modules/context.conf", req.Name))
+	out, _ := linuxCommand(fmt.Sprintf("sed -i 's/.*allowBrowse.*/&\\n\\trealm                   test/' /usr/local/lsws/conf/vhosts/%s.d/modules/context.conf", req.Name))
+	log.Print(string(out))
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("chown nobody:nogroup /usr/local/lsws/conf/vhosts/%s.d/modules/siteauth.conf", req.Name)).Output()
 	defer exec.Command("/bin/bash", "-c", "service lsws reload").Output()
 	return c.NoContent(200)
@@ -479,39 +480,46 @@ func deleteSiteAuthentication(c echo.Context) error {
 	return c.NoContent(200)
 }
 
-func fixFilePermission(c echo.Context) error {
+func fixFilePermissionRequest(c echo.Context) error {
 	type site struct {
 		Name string `json:"name"`
 		User string `json:"user"`
 	}
 	req := new(site)
 	c.Bind(&req)
-	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("chown -R %[1]s:%[1]s /home/%[1]s/%[2]s/", req.User, req.Name)).CombinedOutput()
+	if err := fixFilePermission(req.Name, req.User); err != nil {
+		return c.NoContent(400)
+	}
+	return c.NoContent(200)
+}
+func fixFilePermission(Name string, User string) error {
+
+	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("chown -R %[1]s:%[1]s /home/%[1]s/%[2]s/", User, Name)).CombinedOutput()
 	if err != nil {
 		log.Println(string(out))
-		c.JSON(400, "Failed to chown")
+		return errors.New("Failed to chown")
 	}
-	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("find /home/%s/%s -type d -print0 | xargs -0 chmod 755 ", req.User, req.Name)).Output()
+	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("find /home/%s/%s -type d -print0 | xargs -0 chmod 755 ", User, Name)).Output()
 	if err != nil {
 		log.Println(string(out))
-		c.JSON(400, "Failed to chmod d")
+		return errors.New("Failed to chmod d")
 	}
-	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("find /home/%s/%s -type f -print0 | xargs -0 chmod 644 ", req.User, req.Name)).Output()
+	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("find /home/%s/%s -type f -print0 | xargs -0 chmod 644 ", User, Name)).Output()
 	if err != nil {
 		log.Println(string(out))
-		c.JSON(400, "Failed to chmod f")
+		return errors.New("Failed to chmod f")
 	}
-	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("chmod 604 /home/%s/%s/public/.htaccess ", req.User, req.Name)).Output()
+	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("chmod 604 /home/%s/%s/public/.htaccess ", User, Name)).Output()
 	if err != nil {
 		log.Println(string(out))
-		c.JSON(400, "Failed to chmod htaccess")
+		return errors.New("Failed to chmod htaccess")
 	}
-	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("chmod 640 /home/%s/%s/public/wp-config.php ", req.User, req.Name)).Output()
+	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("chmod 640 /home/%s/%s/public/wp-config.php ", User, Name)).Output()
 	if err != nil {
 		log.Println(string(out))
-		c.JSON(400, "Failed to chmod config")
+		return errors.New("Failed to chmod config")
 	}
-	return c.JSON(200, "success")
+	return nil
 }
 
 func searchAndReplace(c echo.Context) error {

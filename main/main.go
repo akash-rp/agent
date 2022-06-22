@@ -55,7 +55,7 @@ func main() {
 	e.GET("/getPHPsettings/:name", getPHPSettings)
 	e.POST("/updatePHPsettings/:name", updatePHPsettings)
 	e.POST("/updatelocalbackup/:type/:name/:user", updateLocalBackupReq)
-	e.GET("/takelocalondemandbackup/:name/:user", ondemadBackup)
+	e.POST("/takelocalondemandbackup/:name/:user", ondemadBackup)
 	e.GET("/localbackup/nextrun", nextrun)
 	e.GET("/localbackup/list/:name/:user", getLocalBackupsList)
 	e.GET("/restorelocalbackup/:name/:user/:mode/:id/:type", restoreBackupFromPanel)
@@ -98,9 +98,10 @@ func main() {
 	e.POST("/changeOwner", changeOwnership)
 	e.POST("/site/auth/add", addSiteAuthentication)
 	e.POST("/site/auth/delete/:name", deleteSiteAuthentication)
-	e.POST("/site/fixPermission", fixFilePermission)
+	e.POST("/site/fixPermission", fixFilePermissionRequest)
 	e.POST("/searchAndReplace", searchAndReplace)
 	e.POST("/site/clone", siteCloneRequest)
+	e.GET("/site/backup/download/:mode/:id", BackupDownload)
 	e.Logger.Fatal(e.Start(":8081"))
 }
 
@@ -114,7 +115,7 @@ func serverStats(c echo.Context) error {
 	bandwidth, _ := exec.Command("/bin/bash", "-c", "vnstat | awk 'NR==4{print $5$6}'").Output()
 	os, err := exec.Command("/bin/bash", "-c", "hostnamectl | grep 'Operating System' | cut -f 2 -d : | awk '{$1=$1}1'").Output()
 	uptime, _ := exec.Command("/bin/bash", "-c", "awk '{print int($1/3600)\"h\"\" \"int(($1%3600)/60)\"m\"\" \"int($1%60)\"s\"}' /proc/uptime").Output()
-	loadavg, _ := exec.Command("/bin/bash", "-c", "uptime | awk '{ printf \"%s %s %s\",$10,$11,$12}'").Output()
+	loadavg, _ := exec.Command("/bin/bash", "-c", "awk '{ printf \"%s %s %s\",$1,$2,$3}' /proc/loadavg").Output()
 	cpuideal, _ := exec.Command("/bin/bash", "-c", "vmstat | awk 'FNR == 3 {print $15}'").Output()
 	if err != nil {
 		log.Fatal(err)

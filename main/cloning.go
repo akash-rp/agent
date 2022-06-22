@@ -85,6 +85,14 @@ func siteClone(data Clone) (db, error) {
 		return db{}, errors.New("failed to replace site name in extphp")
 	}
 
+	//replace site name and user to clone site in context
+	if _, err := linuxCommand(fmt.Sprintf("sed -i 's/%[1]s/%[2]s/g' /usr/local/lsws/conf/vhosts/%[2]s.d/modules/context.conf", data.Original.Name, data.Clone.Name)); err != nil {
+		return db{}, errors.New("failed to replace site name in context")
+	}
+	if _, err := linuxCommand(fmt.Sprintf("sed -i 's/%[1]s/%[2]s/g' /usr/local/lsws/conf/vhosts/%[3]s.d/modules/context.conf", data.Original.User, data.Clone.User, data.Clone.Name)); err != nil {
+		return db{}, errors.New("failed to replace site name in context")
+	}
+
 	//check if modsecurity file exists and replace site name in that file
 	if _, err := os.Stat(fmt.Sprintf("/usr/local/lsws/conf/vhosts/%s.d/modules/modsecurity.conf", data.Original.Name)); err == nil {
 		if _, err := linuxCommand(fmt.Sprintf("sed -i 's/%[1]s/%[2]s/g' /usr/local/lsws/conf/vhosts/%[2]s.d/modules/modsecurity.conf", data.Original.Name, data.Clone.Name)); err != nil {
@@ -95,6 +103,13 @@ func siteClone(data Clone) (db, error) {
 	//check if modsecurity main.conf file exists and replace site name in that file
 	if _, err := os.Stat(fmt.Sprintf("/usr/local/lsws/conf/vhosts/%s.d/modules/modsecurity.d/main.conf", data.Original.Name)); err == nil {
 		if _, err := linuxCommand(fmt.Sprintf("sed -i 's/%[1]s/%[2]s/g' /usr/local/lsws/conf/vhosts/%[2]s.d/modules/modsecurity.d/main.conf", data.Original.Name, data.Clone.Name)); err != nil {
+			return db{}, errors.New("failed to replace site name in modsecurity")
+		}
+	}
+
+	//check if siteauth file exists and replace site name in that file
+	if _, err := os.Stat(fmt.Sprintf("/usr/local/lsws/conf/vhosts/%s.d/modules/siteauth.conf", data.Original.Name)); err == nil {
+		if _, err := linuxCommand(fmt.Sprintf("sed -i 's/%[1]s/%[2]s/g' /usr/local/lsws/conf/vhosts/%[2]s.d/modules/siteauth.conf", data.Original.Name, data.Clone.Name)); err != nil {
 			return db{}, errors.New("failed to replace site name in modsecurity")
 		}
 	}
@@ -130,6 +145,11 @@ func siteClone(data Clone) (db, error) {
 	out, err = linuxCommand(fmt.Sprintf("cp -r -p /home/%s/%s /home/%s/%s", data.Original.User, data.Original.Name, data.Clone.User, data.Clone.Name))
 	if err != nil {
 		return db{}, errors.New(string(out))
+	}
+
+	//set permission for cloned folder
+	if err := fixFilePermission(data.Clone.Name, data.Clone.User); err != nil {
+		return db{}, err
 	}
 
 	//set db crediantls in clone site wp-config.php

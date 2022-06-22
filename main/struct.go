@@ -10,9 +10,10 @@ type RootEntry struct {
 }
 
 type BackupList []struct {
-	ID        string    `json:"id"`
-	StartTime time.Time `json:"startTime"`
-	RootEntry RootEntry `json:"rootEntry"`
+	ID          string    `json:"id"`
+	StartTime   time.Time `json:"startTime"`
+	RootEntry   RootEntry `json:"rootEntry"`
+	Description string    `json:"description"`
 }
 type LocalBackup struct {
 	Automatic BackupList `json:"automatic"`
