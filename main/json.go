@@ -11,9 +11,8 @@ import (
 
 func addSiteToJSON(AppName string, UserName string, url string, siteType string) error {
 	newSite := Site{Name: AppName, Cache: "off", User: UserName, Type: siteType}
-	newSite.AliasDomain = []DomainJSON{}
 
-	newSite.PrimaryDomain = DomainJSON{Url: url, WildCard: false}
+	newSite.Domains = append(newSite.Domains, url)
 	obj.Sites = append(obj.Sites, newSite)
 	back, _ := json.MarshalIndent(obj, "", "  ")
 	ioutil.WriteFile("/usr/Hosting/config.json", back, 0700)
@@ -53,4 +52,17 @@ func SaveJSONFile() error {
 		return errors.New("cannot save JSON File")
 	}
 	return nil
+}
+
+func removeElementFromSlice(slice []string, element string) []string {
+	for i, item := range slice {
+		if item == element {
+			slice[i] = slice[len(slice)-1] // Copy last element to index i.
+			slice[len(slice)-1] = ""       // Erase last element (write zero value).
+			slice = slice[:len(slice)-1]
+			break
+		}
+	}
+	return slice
+
 }

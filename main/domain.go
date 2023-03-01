@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"os/exec"
 
 	"github.com/labstack/echo/v4"
@@ -138,6 +139,7 @@ func deleteDomain(c echo.Context) error {
 		log.Print(string(out))
 		return c.JSON(400, "Cannot delete domain")
 	}
+	linuxCommand(fmt.Sprintf("rm %[1]s/%[2]s.d/domain/%[3]s.ssl* ;rm %[1]s/%[2]s.d/domain/%[3]s.rewrite*", RootPath, site.SiteName, site.Domain.Url))
 	deleteDomainFromJson(*site)
 	defer exec.Command("/bin/bash", "-c", "service lsws restart").Output()
 	return c.JSON(200, "Success")
@@ -149,32 +151,13 @@ func addWildcard(c echo.Context) error {
 	if site.Domain.Url == "" || site.SiteName == "" {
 		return c.JSON(400, "All fields are not defined")
 	}
-	found := false
 	domain := site.Domain.Url + ", " + "*." + site.Domain.Url
-	for i, oneSite := range obj.Sites {
-		if site.SiteName == oneSite.Name {
-
-			if site.Domain.Type == "primary" {
-				if oneSite.PrimaryDomain.Url == site.Domain.Url {
-					found = true
-					obj.Sites[i].PrimaryDomain.WildCard = true
-				}
-			} else {
-				for j, alias := range oneSite.AliasDomain {
-					if site.Domain.Url == alias.Url {
-						found = true
-						obj.Sites[i].AliasDomain[j].WildCard = true
-
-					}
-				}
-			}
-		}
+	_, err := os.Stat(fmt.Sprintf("/usr/local/lsws/conf/vhosts/%s.d/domain/%s.conf", site.SiteName, site.Domain.Url))
+	if err != nil {
+		return c.NoContent(400)
 	}
-	if found {
-		exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i '/vhDomain/c\\vhDomain %s'  /usr/local/lsws/conf/vhosts/%s.d/domain/%s.conf", domain, site.SiteName, site.Domain.Url)).Output()
-	} else {
-		return c.JSON(400, "Url not found")
-	}
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i '/vhDomain/c\\vhDomain %s'  /usr/local/lsws/conf/vhosts/%s.d/domain/%s.conf", domain, site.SiteName, site.Domain.Url)).Output()
+
 	defer exec.Command("/bin/bash", "-c", "service lsws reload").Output()
 	return c.NoContent(200)
 }
@@ -186,38 +169,17 @@ func removeWildcard(c echo.Context) error {
 		return c.JSON(400, "All fields are not defined")
 	}
 	var domain string
-	found := false
 	if site.Domain.IsSubDomain {
 		domain = site.Domain.Url
 	} else {
 		domain = site.Domain.Url + ", " + "www." + site.Domain.Url
 	}
-	for i, oneSite := range obj.Sites {
-		if site.SiteName == oneSite.Name {
-
-			if site.Domain.Type == "primary" {
-				if oneSite.PrimaryDomain.Url == site.Domain.Url {
-					found = true
-					obj.Sites[i].PrimaryDomain.WildCard = false
-				}
-			} else {
-				for j, alias := range oneSite.AliasDomain {
-					if site.Domain.Url == alias.Url {
-						found = true
-						obj.Sites[i].AliasDomain[j].WildCard = false
-
-					}
-				}
-			}
-		}
+	_, err := os.Stat(fmt.Sprintf("/usr/local/lsws/conf/vhosts/%s.d/domain/%s.conf", site.SiteName, site.Domain.Url))
+	if err != nil {
+		return c.NoContent(400)
 	}
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i '/vhDomain/c\\vhDomain %s'  /usr/local/lsws/conf/vhosts/%s.d/domain/%s.conf", domain, site.SiteName, site.Domain.Url)).Output()
 
-	if found {
-
-		exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i '/vhDomain/c\\vhDomain %s'  /usr/local/lsws/conf/vhosts/%s.d/domain/%s.conf", domain, site.SiteName, site.Domain.Url)).Output()
-	} else {
-		return c.JSON(400, "Url not found")
-	}
 	defer exec.Command("/bin/bash", "-c", "service lsws reload").Output()
 	return c.NoContent(200)
 }
@@ -226,7 +188,7 @@ func addDomainToJson(conf DomainConf) {
 	for i, site := range obj.Sites {
 		if site.Name == conf.SiteName {
 
-			site.AliasDomain = append(site.AliasDomain, DomainJSON{Url: conf.Domain.Url})
+			site.Domains = append(site.Domains, conf.Domain.Url)
 			obj.Sites[i] = site
 		}
 	}
@@ -236,13 +198,9 @@ func addDomainToJson(conf DomainConf) {
 func deleteDomainFromJson(conf DomainConf) {
 	for i, site := range obj.Sites {
 		if site.Name == conf.SiteName {
-			for j, alias := range site.AliasDomain {
-				if alias.Url == conf.Domain.Url {
-					final := append(site.AliasDomain[:j], site.AliasDomain[j+1:]...)
-					site.AliasDomain = final
-					obj.Sites[i] = site
-				}
-			}
+			domains := removeElementFromSlice(site.Domains, conf.Domain.Url)
+			obj.Sites[i].Domains = domains
+			break
 		}
 	}
 	SaveJSONFile()

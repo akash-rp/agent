@@ -15,10 +15,15 @@ type BackupList []struct {
 	RootEntry   RootEntry `json:"rootEntry"`
 	Description string    `json:"description"`
 }
-type LocalBackup struct {
+type LocalBackupList struct {
 	Automatic BackupList `json:"automatic"`
 	Ondemand  BackupList `json:"ondemand"`
 	System    BackupList `json:"system"`
+}
+
+type RemoteBackupList struct {
+	Automatic BackupList `json:"automatic"`
+	Ondemand  BackupList `json:"ondemand"`
 }
 type systemstats struct {
 	Cores       string `json:"cores"`
@@ -80,20 +85,30 @@ type wpdelete struct {
 // }
 
 type sslConf struct {
-	App         string `json:"app"`
-	User        string `json:"user"`
-	SslMethod   string `json:"sslMethod"`
-	IsSubdomain bool   `json:"isSubdomain"`
-	Custom      struct {
+	App       string `json:"app"`
+	User      string `json:"user"`
+	Challenge string `json:"challenge"`
+	Custom    struct {
 		Certificate string `json:"certificate"`
 		Key         string `json:"key"`
 	} `json:"custom"`
-	Domain string `json:"domain"`
+	Domain      string   `json:"domainName"`
+	Domains     []string `json:"domains"`
+	Provider    string   `json:"provider"`
+	DNSProvider string   `json:"dnsProvider"`
+	Token       string   `json:"token"`
 }
 
 type errcode struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
+}
+
+type errJson struct {
+	Errors []struct {
+		Field   string `json:"field"`
+		Message string `json:"message"`
+	} `json:"errors"`
 }
 
 // type DomainEdit struct {
@@ -164,14 +179,14 @@ type Default struct {
 }
 
 type Site struct {
-	Name          string       `json:"name"`
-	User          string       `json:"user"`
-	PrimaryDomain DomainJSON   `json:"primaryDomain"`
-	AliasDomain   []DomainJSON `json:"aliasDomain"`
-	Cache         string       `json:"cache"`
-	LocalBackup   Backup       `json:"localBackup"`
-	Type          string       `json:"type"`
-	EnforceHttps  bool         `json:"enforceHttps"`
+	Name         string         `json:"name"`
+	User         string         `json:"user"`
+	Domains      []string       `json:"domains"`
+	Cache        string         `json:"cache"`
+	LocalBackup  Backup         `json:"localBackup"`
+	RemoteBackup []RemoteBackup `json:"remoteBackup"`
+	Type         string         `json:"type"`
+	EnforceHttps bool           `json:"enforceHttps"`
 }
 
 // type NewRelic struct {
@@ -193,6 +208,16 @@ type DomainJSON struct {
 }
 
 type Backup struct {
+	Automatic bool            `json:"automatic"`
+	Frequency string          `json:"frequency"`
+	Time      BackupTime      `json:"time"`
+	Retention BackupRetention `json:"retention"`
+	LastRun   string          `json:"lastrun"`
+}
+
+type RemoteBackup struct {
+	Provider  string          `json:"provider"`
+	Bucket    string          `json:"bucket"`
 	Automatic bool            `json:"automatic"`
 	Frequency string          `json:"frequency"`
 	Time      BackupTime      `json:"time"`

@@ -453,7 +453,7 @@ func addSiteAuthentication(c echo.Context) error {
 	}
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("chown nobody:nogroup /usr/local/lsws/conf/vhosts/%s.d/userdb", req.Name)).Output()
 	realm := fmt.Sprintf(`
-	realm test {
+	realm auth {
 		userDB  {
 		  location              /usr/local/lsws/conf/vhosts/%s.d/userdb
 		}
@@ -465,7 +465,7 @@ func addSiteAuthentication(c echo.Context) error {
 
 		return c.JSON(400, "Failed to write realm file")
 	}
-	out, _ := linuxCommand(fmt.Sprintf("sed -i 's/.*allowBrowse.*/&\\n\\trealm                   test/' /usr/local/lsws/conf/vhosts/%s.d/modules/context.conf", req.Name))
+	out, _ := linuxCommand(fmt.Sprintf("sed -i 's/.*allowBrowse.*/&\\n\\trealm                   auth/' /usr/local/lsws/conf/vhosts/%s.d/modules/context.conf", req.Name))
 	log.Print(string(out))
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("chown nobody:nogroup /usr/local/lsws/conf/vhosts/%s.d/modules/siteauth.conf", req.Name)).Output()
 	defer exec.Command("/bin/bash", "-c", "service lsws reload").Output()
@@ -497,27 +497,27 @@ func fixFilePermission(Name string, User string) error {
 	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("chown -R %[1]s:%[1]s /home/%[1]s/%[2]s/", User, Name)).CombinedOutput()
 	if err != nil {
 		log.Println(string(out))
-		return errors.New("Failed to chown")
+		return errors.New("failed to chown")
 	}
 	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("find /home/%s/%s -type d -print0 | xargs -0 chmod 755 ", User, Name)).Output()
 	if err != nil {
 		log.Println(string(out))
-		return errors.New("Failed to chmod d")
+		return errors.New("failed to chmod d")
 	}
 	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("find /home/%s/%s -type f -print0 | xargs -0 chmod 644 ", User, Name)).Output()
 	if err != nil {
 		log.Println(string(out))
-		return errors.New("Failed to chmod f")
+		return errors.New("failed to chmod f")
 	}
 	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("chmod 604 /home/%s/%s/public/.htaccess ", User, Name)).Output()
 	if err != nil {
 		log.Println(string(out))
-		return errors.New("Failed to chmod htaccess")
+		return errors.New("failed to chmod htaccess")
 	}
 	out, err = exec.Command("/bin/bash", "-c", fmt.Sprintf("chmod 640 /home/%s/%s/public/wp-config.php ", User, Name)).Output()
 	if err != nil {
 		log.Println(string(out))
-		return errors.New("Failed to chmod config")
+		return errors.New("failed to chmod config")
 	}
 	return nil
 }

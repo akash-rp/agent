@@ -1,0 +1,1 @@
+php /usr/Hosting/script/srdb.cli.php -h localhost -n Akash_53304 -u root -p ndeqeKUFF6MYnAAyahcdWUjZ3uSJBKhUvmhQKpSLIvBekGofNgPGOqC -s "#(http(s)?)((\:\/\/)|(\:\\\/\\\/)|((\:|\%3A)\%2F\%2F))(kashu.tk)#" -r 'http://akashrp.tk' -x guid -x user_email -g

@@ -69,6 +69,14 @@ phpIniOverride{
 		accessControl  {
 		  allow                 *
 		}
+		extraHeaders <<<END_extraHeaders
+			set Referrer-Policy strict-origin-when-cross-origin
+			set Strict-Transport-Security: max-age=31536000
+			set X-Content-Type-Options nosniff
+			set X-Frame-Options SAMEORIGIN
+			set X-XSS-Protection 1; mode=block
+		END_extraHeaders
+		
 		include /usr/local/lsws/conf/vhosts/%s.d/modules/rewrite.conf
 	}
 	`, wp.AppName)), 0640)
@@ -157,20 +165,48 @@ func addDomainConf(Domain Domain, appName string) error {
 		`
 # Editing this file manually might change litespeed behavior,
 # Make sure you know what are you doing
-virtualhost %s {
+virtualhost %[1]s {
   listeners http, https
 	
-  vhDomain                  %s	
+  vhDomain                  %[2]s	
   
-  rewrite  {
- 	enable                  1
-  	autoLoadHtaccess        1
-  }
-		
-  include %s/%s.d/main.conf
+  include %[3]s/%[4]s.d/domain/%[1]s.ssl
+  include %[3]s/%[4]s.d/domain/%[1]s.rewrite
+  include %[3]s/%[4]s.d/main.conf
 }
 `, Domain.Url, confUrl, RootPath, appName)
 	if err := ioutil.WriteFile(fmt.Sprintf("%s/%s.conf", path, Domain.Url), []byte(writeFile), 0750); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Error creating app conf")
+	}
+	if !checkIfSslExistsForDomain(Domain) {
+
+		writeFile =
+			`
+		# Editing this file manually might change litespeed behavior,
+		# Make sure you know what are you doing
+		
+		vhssl{
+			
+		}
+		`
+		if err := ioutil.WriteFile(fmt.Sprintf("%s/%s.ssl", path, Domain.Url), []byte(writeFile), 0750); err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, "Error creating app conf")
+		}
+	} else {
+		configureDomainForSSl(appName, Domain.Url)
+	}
+
+	writeFile =
+		`
+# Editing this file manually might change litespeed behavior,
+# Make sure you know what are you doing
+
+rewrite  {
+	enable                  1
+	autoLoadHtaccess        1
+ }
+`
+	if err := ioutil.WriteFile(fmt.Sprintf("%s/%s.rewrite", path, Domain.Url), []byte(writeFile), 0750); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Error creating app conf")
 	}
 

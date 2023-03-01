@@ -14,6 +14,9 @@ func initCron() {
 	cronInt.StartAsync()
 	for _, site := range obj.Sites {
 		addCronJob(site.LocalBackup, site.Name, site.User, site.LocalBackup.LastRun)
+		for _, remote := range site.RemoteBackup {
+			addRemoteCronJob(remote, site.Name, site.User, remote.LastRun)
+		}
 	}
 	cronInt.Every(1).Minute().Do(storeMetrics)
 	cronInt.Every(1).Hour().WaitForSchedule().Do(metricsPartation)
