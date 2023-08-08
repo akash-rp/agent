@@ -323,3 +323,10 @@ type Clone struct {
 	} `json:"cloneSite"`
 	Rewrite bool `json:"rewrite"`
 }
+
+type AuthorizedKey struct {
+	Username  string
+	Key       string
+	Label     string
+	Timestamp int64
+}

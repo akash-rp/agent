@@ -66,6 +66,7 @@ func main() {
 	e.POST("/syncChanges", syncChanges)
 	e.GET("/deleteStaging/:name/:user", deleteStagingSite)
 	e.POST("/deleteSite", wpDelete)
+	e.GET("/sshkey", getSshKeys)
 	e.POST("/sshKey/add", addSSHkey)
 	e.POST("/sshKey/remove", removeSSHkey)
 	e.GET("/plugin/list/:user/:name", getPluginsList)
