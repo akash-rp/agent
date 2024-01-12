@@ -84,31 +84,56 @@ func metricsPartation() {
 }
 
 func getAllMetrics(c echo.Context) error {
-	MetricsLog := new(struct {
+	period := c.Param("period")
+	var minTime int
+
+	switch period {
+	case "1hr":
+		minTime = 3600000
+	case "3hr":
+		minTime = 10800000
+	case "6hr":
+		minTime = 21600000
+	case "12hr":
+		minTime = 43200000
+	case "1day":
+		minTime = 86400000
+	case "3days":
+		minTime = 259200000
+	case "7days":
+		minTime = 604800000
+	case "14days":
+		minTime = 1209600000
+	default:
+		minTime = 3600000
+	}
+
+	metricsLog := new(struct {
 		Memory []MetricsValue `json:"memory"`
 		Cpu    []MetricsValue `json:"cpu"`
 		Load   []MetricsValue `json:"load"`
 		Disk   []MetricsValue `json:"disk"`
 	})
 
-	memory, _ := metrics.Select("Memory", nil, time.Now().UnixMilli()-3600000, time.Now().UnixMilli())
-	cpu, _ := metrics.Select("Cpu", nil, time.Now().UnixMilli()-3600000, time.Now().UnixMilli())
-	load, _ := metrics.Select("Load", nil, time.Now().UnixMilli()-3600000, time.Now().UnixMilli())
-	disk, _ := metrics.Select("Disk", nil, time.Now().UnixMilli()-3600000, time.Now().UnixMilli())
+	memory, _ := metrics.Select("Memory", nil, time.Now().UnixMilli()-int64(minTime), time.Now().UnixMilli())
+	cpu, _ := metrics.Select("Cpu", nil, time.Now().UnixMilli()-int64(minTime), time.Now().UnixMilli())
+	load, _ := metrics.Select("Load", nil, time.Now().UnixMilli()-int64(minTime), time.Now().UnixMilli())
+	disk, _ := metrics.Select("Disk", nil, time.Now().UnixMilli()-int64(minTime), time.Now().UnixMilli())
+
 	for _, points := range memory {
-		MetricsLog.Memory = append(MetricsLog.Memory, MetricsValue{Value: float64(points.Value), Time: int(points.Timestamp)})
+		metricsLog.Memory = append(metricsLog.Memory, MetricsValue{Value: float64(points.Value), Time: int(points.Timestamp)})
 	}
 	for _, points := range cpu {
-		MetricsLog.Cpu = append(MetricsLog.Cpu, MetricsValue{Value: float64(points.Value), Time: int(points.Timestamp)})
+		metricsLog.Cpu = append(metricsLog.Cpu, MetricsValue{Value: float64(points.Value), Time: int(points.Timestamp)})
 	}
 	for _, points := range load {
-		MetricsLog.Load = append(MetricsLog.Load, MetricsValue{Value: float64(points.Value), Time: int(points.Timestamp)})
+		metricsLog.Load = append(metricsLog.Load, MetricsValue{Value: float64(points.Value), Time: int(points.Timestamp)})
 	}
 	for _, points := range disk {
-		MetricsLog.Disk = append(MetricsLog.Disk, MetricsValue{Value: float64(points.Value), Time: int(points.Timestamp)})
+		metricsLog.Disk = append(metricsLog.Disk, MetricsValue{Value: float64(points.Value), Time: int(points.Timestamp)})
 	}
-	return c.JSON(200, MetricsLog)
 
+	return c.JSON(200, metricsLog)
 }
 
 func getMetrics(c echo.Context) error {

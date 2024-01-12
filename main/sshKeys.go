@@ -3,7 +3,9 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,56 +15,105 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-func addSSHkey(c echo.Context) error {
+func addSshKey(c echo.Context) error {
 	ssh := new(SSH)
-	c.Bind(&ssh)
+	if err := c.Bind(ssh); err != nil {
+		return c.JSON(http.StatusBadRequest, "Invalid request")
+	}
+
 	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("echo \"%s\" | ssh-keygen -l -f -", ssh.Key)).CombinedOutput()
 	if err != nil {
 		log.Print(string(out))
 		body := new(FieldError)
 		body.Error.Field = "key"
 		body.Error.Message = "Invalid SSH Key"
-		return c.JSON(400, body)
-
+		return c.JSON(http.StatusBadRequest, body)
 	}
+
+	var authorizedKeysPath string
 	if ssh.User != "root" {
-
+		authorizedKeysPath = fmt.Sprintf("/home/%s/.ssh/authorized_keys", ssh.User)
 		os.MkdirAll(fmt.Sprintf("/home/%s/.ssh", ssh.User), 0700)
-		f, err := os.OpenFile(fmt.Sprintf("/home/%s/.ssh/authorized_keys", ssh.User), os.O_APPEND|os.O_RDWR|os.O_CREATE, 0600)
 		exec.Command("/bin/bash", "-c", fmt.Sprintf("chown %[1]s:%[1]s -R /home/%[1]s/.ssh", ssh.User)).Output()
-		if err != nil {
-			return c.NoContent(400)
-		}
-		f.Write([]byte("\n" + ssh.Key))
-		f.Close()
 	} else {
+		authorizedKeysPath = "/root/.ssh/authorized_keys"
 		os.MkdirAll("/root/.ssh", 0700)
-		f, err := os.OpenFile("/root/.ssh/authorized_keys", os.O_APPEND|os.O_RDWR|os.O_CREATE, 0600)
-		if err != nil {
-			return c.NoContent(400)
-		}
-		f.Write([]byte("\n" + ssh.Key))
-		f.Close()
 	}
-	return c.JSON(200, "Success")
+
+	f, err := os.OpenFile(authorizedKeysPath, os.O_APPEND|os.O_RDWR|os.O_CREATE, 0600)
+	if err != nil {
+		return c.NoContent(http.StatusBadRequest)
+	}
+	defer f.Close()
+
+	// Append the SSH key with associated label and timestamp to the authorized_keys file
+	if ssh.Label != "" && ssh.Timestamp != 0 {
+		keyLine := fmt.Sprintf("#hosting/%s/%d\n%s\n", ssh.Label, ssh.Timestamp, ssh.Key)
+		f.Write([]byte(keyLine))
+	} else {
+		f.Write([]byte("\n" + ssh.Key))
+	}
+
+	return c.NoContent(200)
 }
 
-func removeSSHkey(c echo.Context) error {
+func removeSshKey(c echo.Context) error {
 	ssh := new(SSH)
-	c.Bind(&ssh)
-	if ssh.User != "root" {
+	if err := c.Bind(ssh); err != nil {
+		return c.JSON(http.StatusBadRequest, "Invalid request")
+	}
 
-		_, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("grep -v \"%s\" /home/%[2]s/.ssh/authorized_keys > /home/%[2]s/.ssh/tmp; mv -f /home/%[2]s/.ssh/tmp /home/%[2]s/.ssh/authorized_keys; chown %[2]s:%[2]s /home/%[2]s/.ssh/authorized_keys", ssh.Key, ssh.User)).CombinedOutput()
-		if err != nil {
-			return c.NoContent(400)
-		}
+	var authorizedKeysPath string
+	if ssh.User != "root" {
+		authorizedKeysPath = fmt.Sprintf("/home/%s/.ssh/authorized_keys", ssh.User)
 	} else {
-		_, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("grep -v \"%s\" /root/.ssh/authorized_keys > /root/.ssh/tmp; mv -f /root/.ssh/tmp /root/.ssh/authorized_keys;", ssh.Key)).CombinedOutput()
-		if err != nil {
-			return c.NoContent(400)
+		authorizedKeysPath = "/root/.ssh/authorized_keys"
+	}
+
+	// Read the existing authorized_keys file
+	fileContent, err := ioutil.ReadFile(authorizedKeysPath)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, "Failed to read authorized_keys file")
+	}
+
+	// Remove the specified SSH key and its associated comment (if present)
+	lines := strings.Split(string(fileContent), "\n")
+	var newContent strings.Builder
+	for i := 0; i < len(lines); i++ {
+		line := lines[i]
+		if strings.HasPrefix(line, "#hosting") && i+1 < len(lines) {
+			// Check for comments starting with "#hosting" and extract the label and timestamp
+			fields := strings.Split(line, "/")
+			if len(fields) >= 3 && fields[0] == "#hosting" {
+				_, err := strconv.ParseInt(fields[2], 10, 64)
+				if err != nil {
+					// Invalid timestamp, skip this comment
+					continue
+				}
+				// Check if the current line contains the specified SSH key
+				if strings.Contains(lines[i+1], ssh.Key) {
+					// Skip this line (the key) and the next line (the associated comment)
+					i++
+					continue
+				}
+				// Append the comment and the key (in case the key is not found)
+				newContent.WriteString(line)
+				newContent.WriteString("\n")
+			}
+		} else if !strings.Contains(line, ssh.Key) {
+			// Append the line if it doesn't contain the specified key
+			newContent.WriteString(line)
+			newContent.WriteString("\n")
 		}
 	}
-	return c.JSON(200, "success")
+
+	// Write the modified content back to the authorized_keys file
+	err = ioutil.WriteFile(authorizedKeysPath, []byte(newContent.String()), 0600)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, "Failed to update authorized_keys file")
+	}
+
+	return c.JSON(http.StatusOK, "Success")
 }
 
 // readKeysFromFile reads authorized SSH keys with comments starting with "#hosting" from a file.

@@ -2,17 +2,16 @@ package main
 
 import (
 	"fmt"
+	"github.com/labstack/echo/v4"
 	"os/exec"
 	"strings"
-
-	"github.com/labstack/echo/v4"
 )
 
 func getSshUsersSession(c echo.Context) error {
 	out, err := exec.Command("/bin/bash", "-c", "w").Output()
 
 	if err != nil {
-		return c.JSON(400, err.Error())
+		return AbortWithErrorMessage(c, err.Error())
 	}
 	list := strings.Split(string(out), "\n")
 	list = list[2:]
@@ -46,10 +45,10 @@ func getSshUsersSession(c echo.Context) error {
 
 func killSshSession(c echo.Context) error {
 	type id struct {
-		User string `json:"user"`
+		ID string `json:"id"`
 	}
 	user := new(id)
 	c.Bind(&user)
-	exec.Command("/bin/bash", "-c", fmt.Sprintf("pkill -9 -t %s", user.User)).Output()
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("pkill -9 -t %s", user.ID)).Output()
 	return getSshUsersSession(c)
 }

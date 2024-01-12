@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/labstack/echo/v4"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -11,8 +12,6 @@ import (
 	"os/exec"
 	"strconv"
 	"time"
-
-	"github.com/labstack/echo/v4"
 )
 
 var cronBusy bool
@@ -32,7 +31,7 @@ func updateLocalBackupReq(c echo.Context) error {
 func updateLocalBackup(name string, user string, backup *Backup) error {
 	lastBackup := ""
 	if backup.Automatic {
-		cronInt.RemoveByTag(name)
+		_ = cronInt.RemoveByTag(name)
 		latest := getLatest(backup.Frequency, backup.Retention)
 		out, _ := exec.Command("/bin/bash", "-c", fmt.Sprintf("kopia --config-file=/var/Backup/config/automatic/automatic.config policy set /home/%s/%s --keep-latest %d --keep-hourly 0 --keep-daily 0 --keep-weekly 0 --keep-monthly 0 --keep-annual 0 ", user, name, latest)).CombinedOutput()
 		log.Println(string(out))
@@ -198,126 +197,33 @@ func takeBackup(name string, user string, msg string, backupLocation string, pro
 func addCronJob(backup Backup, name string, user string, lastBackup string) error {
 	log.Print(backup)
 	var err error
+
 	if (backup != Backup{}) {
-		if backup.Automatic {
-			switch backup.Frequency {
-			case "Hourly":
-				_, err = cronInt.Cron(fmt.Sprintf("%s * * * *", backup.Time.Minute)).Tag(name).Do(func() {
-					takeBackup(name, user, "Started by cron Do function", "local", "", "")
-				})
-				if err != nil {
-					log.Print(err)
-				}
-				log.Print("Next is Prevoious function")
-				if !previousBackupExecuted(lastBackup, "Hourly") {
-
-					takeBackup(name, user, "Started Due to no last run", "local", "", "")
-				}
-				return nil
-
-			case "Daily":
-				if _, err = cronInt.Every(1).Day().At(fmt.Sprintf("%s:%s", backup.Time.Hour, backup.Time.Minute)).Tag(name).Do(func() {
-					takeBackup(name, user, "Started by cron Do function", "local", "", "")
-				}); err != nil {
-					log.Print(err)
-				}
-				if !previousBackupExecuted(lastBackup, "Daily") {
-
-					takeBackup(name, user, "Started Due to no last run", "local", "", "")
-				}
-				return nil
-			case "Weekly":
-				switch backup.Time.WeekDay {
-				case "Sunday":
-					if _, err = cronInt.Every(1).Weekday(time.Sunday).At(fmt.Sprintf("%s:%s", backup.Time.Hour, backup.Time.Minute)).Tag(name).Do(func() {
-						takeBackup(name, user, "Started by cron Do function", "local", "", "")
-					}); err != nil {
-						log.Print(err)
-					}
-					if !previousBackupExecuted(lastBackup, "Weekly") {
-
-						takeBackup(name, user, "Started Due to no last run", "local", "", "")
-					}
-				case "Monday":
-					if _, err = cronInt.Every(1).Weekday(time.Monday).At(fmt.Sprintf("%s:%s", backup.Time.Hour, backup.Time.Minute)).Tag(name).Do(func() {
-						takeBackup(name, user, "Started by cron Do function", "local", "", "")
-					}); err != nil {
-						log.Print(err)
-					}
-					if !previousBackupExecuted(lastBackup, "Weekly") {
-
-						takeBackup(name, user, "Started Due to no last run", "local", "", "")
-					}
-				case "Tuesday":
-					if _, err = cronInt.Every(1).Weekday(time.Tuesday).At(fmt.Sprintf("%s:%s", backup.Time.Hour, backup.Time.Minute)).Tag(name).Do(func() {
-						takeBackup(name, user, "Started by cron Do function", "local", "", "")
-					}); err != nil {
-						log.Print(err)
-					}
-					if !previousBackupExecuted(lastBackup, "Weekly") {
-
-						takeBackup(name, user, "Started Due to no last run", "local", "", "")
-					}
-				case "Wednesday":
-					if _, err = cronInt.Every(1).Weekday(time.Wednesday).At(fmt.Sprintf("%s:%s", backup.Time.Hour, backup.Time.Minute)).Tag(name).Do(func() {
-						takeBackup(name, user, "Started by cron Do function", "local", "", "")
-					}); err != nil {
-						log.Print(err)
-					}
-					if !previousBackupExecuted(lastBackup, "Weekly") {
-
-						takeBackup(name, user, "Started Due to no last run", "local", "", "")
-					}
-				case "Thursday":
-					if _, err = cronInt.Every(1).Weekday(time.Thursday).At(fmt.Sprintf("%s:%s", backup.Time.Hour, backup.Time.Minute)).Tag(name).Do(func() {
-						takeBackup(name, user, "Started by cron Do function", "local", "", "")
-					}); err != nil {
-						log.Print(err)
-					}
-					if !previousBackupExecuted(lastBackup, "Weekly") {
-
-						takeBackup(name, user, "Started Due to no last run", "local", "", "")
-					}
-				case "Friday":
-					if _, err = cronInt.Every(1).Weekday(time.Friday).At(fmt.Sprintf("%s:%s", backup.Time.Hour, backup.Time.Minute)).Tag(name).Do(func() {
-						takeBackup(name, user, "Started by cron Do function", "local", "", "")
-					}); err != nil {
-						log.Print(err)
-					}
-					if !previousBackupExecuted(lastBackup, "Weekly") {
-
-						takeBackup(name, user, "Started Due to no last run", "local", "", "")
-					}
-				case "Saturday":
-					if _, err = cronInt.Every(1).Weekday(time.Saturday).At(fmt.Sprintf("%s:%s", backup.Time.Hour, backup.Time.Minute)).Tag(name).Do(func() {
-						takeBackup(name, user, "Started by cron Do function", "local", "", "")
-					}); err != nil {
-						log.Print(err)
-					}
-					if !previousBackupExecuted(lastBackup, "Weekly") {
-
-						takeBackup(name, user, "Started Due to no last run", "local", "", "")
-					}
-				}
-
-			case "Monthly":
-				day, _ := strconv.Atoi(backup.Time.MonthDay)
-				if _, err = cronInt.Every(1).Month(day).At(fmt.Sprintf("%s:%s", backup.Time.Hour, backup.Time.Minute)).Tag(name).Do(func() {
-					takeBackup(name, user, "Started by cron Do function", "local", "", "")
-				}); err != nil {
-					log.Print(err)
-				}
-				if !previousBackupExecuted(lastBackup, "Weekly") {
-
-					takeBackup(name, user, "Started Due to no last run", "local", "", "")
-				}
-			}
+		cron := backup.getCronExpression()
+		if cron == "" {
+			return errors.New("invalid backup frequency")
 		}
 
+		_, err = cronInt.Cron(cron).Tag(name).Do(func() {
+			takeBackup(name, user, "Started by cron Do function", "local", "", "")
+		})
+		if err != nil {
+			log.Print(err)
+		}
+
+		log.Print("Next is Prevoious function")
+
+		if !previousBackupExecuted(lastBackup, backup.Frequency) {
+			takeBackup(name, user, "Started Due to no last run", "local", "", "")
+		}
+		return nil
+
 	}
+
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -325,121 +231,22 @@ func addRemoteCronJob(backup RemoteBackup, name string, user string, lastBackup 
 	log.Print(backup)
 	var err error
 	if (backup != RemoteBackup{}) {
-		if backup.Automatic {
-			switch backup.Frequency {
-			case "Hourly":
-				_, err = cronInt.Cron(fmt.Sprintf("%s * * * *", backup.Time.Minute)).Tag(name + "-" + backup.Provider + "-" + backup.Bucket).Do(func() {
-					takeBackup(name, user, "Started by cron Do function", "remote", backup.Provider, backup.Bucket)
-				})
-				if err != nil {
-					log.Print(err)
-				}
-				log.Print("Next is Prevoious function")
-				if !previousBackupExecuted(lastBackup, "Hourly") {
-
-					takeBackup(name, user, "Started Due to no last run", "remote", backup.Provider, backup.Bucket)
-				}
-				return nil
-
-			case "Daily":
-				if _, err = cronInt.Every(1).Day().At(fmt.Sprintf("%s:%s", backup.Time.Hour, backup.Time.Minute)).Tag(name + "-" + backup.Provider + "-" + backup.Bucket).Do(func() {
-					takeBackup(name, user, "Started by cron Do function", "remote", backup.Provider, backup.Bucket)
-				}); err != nil {
-					log.Print(err)
-				}
-				if !previousBackupExecuted(lastBackup, "Daily") {
-
-					takeBackup(name, user, "Started Due to no last run", "remote", backup.Provider, backup.Bucket)
-				}
-				return nil
-			case "Weekly":
-				switch backup.Time.WeekDay {
-				case "Sunday":
-					if _, err = cronInt.Every(1).Weekday(time.Sunday).At(fmt.Sprintf("%s:%s", backup.Time.Hour, backup.Time.Minute)).Tag(name + "-" + backup.Provider + "-" + backup.Bucket).Do(func() {
-						takeBackup(name, user, "Started by cron Do function", "remote", backup.Provider, backup.Bucket)
-					}); err != nil {
-						log.Print(err)
-					}
-					if !previousBackupExecuted(lastBackup, "Weekly") {
-
-						takeBackup(name, user, "Started Due to no last run", "remote", backup.Provider, backup.Bucket)
-					}
-				case "Monday":
-					if _, err = cronInt.Every(1).Weekday(time.Monday).At(fmt.Sprintf("%s:%s", backup.Time.Hour, backup.Time.Minute)).Tag(name + "-" + backup.Provider + "-" + backup.Bucket).Do(func() {
-						takeBackup(name, user, "Started by cron Do function", "remote", backup.Provider, backup.Bucket)
-					}); err != nil {
-						log.Print(err)
-					}
-					if !previousBackupExecuted(lastBackup, "Weekly") {
-
-						takeBackup(name, user, "Started Due to no last run", "remote", backup.Provider, backup.Bucket)
-					}
-				case "Tuesday":
-					if _, err = cronInt.Every(1).Weekday(time.Tuesday).At(fmt.Sprintf("%s:%s", backup.Time.Hour, backup.Time.Minute)).Tag(name + "-" + backup.Provider + "-" + backup.Bucket).Do(func() {
-						takeBackup(name, user, "Started by cron Do function", "remote", backup.Provider, backup.Bucket)
-					}); err != nil {
-						log.Print(err)
-					}
-					if !previousBackupExecuted(lastBackup, "Weekly") {
-
-						takeBackup(name, user, "Started Due to no last run", "remote", backup.Provider, backup.Bucket)
-					}
-				case "Wednesday":
-					if _, err = cronInt.Every(1).Weekday(time.Wednesday).At(fmt.Sprintf("%s:%s", backup.Time.Hour, backup.Time.Minute)).Tag(name + "-" + backup.Provider + "-" + backup.Bucket).Do(func() {
-						takeBackup(name, user, "Started by cron Do function", "remote", backup.Provider, backup.Bucket)
-					}); err != nil {
-						log.Print(err)
-					}
-					if !previousBackupExecuted(lastBackup, "Weekly") {
-
-						takeBackup(name, user, "Started Due to no last run", "remote", backup.Provider, backup.Bucket)
-					}
-				case "Thursday":
-					if _, err = cronInt.Every(1).Weekday(time.Thursday).At(fmt.Sprintf("%s:%s", backup.Time.Hour, backup.Time.Minute)).Tag(name + "-" + backup.Provider + "-" + backup.Bucket).Do(func() {
-						takeBackup(name, user, "Started by cron Do function", "remote", backup.Provider, backup.Bucket)
-					}); err != nil {
-						log.Print(err)
-					}
-					if !previousBackupExecuted(lastBackup, "Weekly") {
-
-						takeBackup(name, user, "Started Due to no last run", "remote", backup.Provider, backup.Bucket)
-					}
-				case "Friday":
-					if _, err = cronInt.Every(1).Weekday(time.Friday).At(fmt.Sprintf("%s:%s", backup.Time.Hour, backup.Time.Minute)).Tag(name + "-" + backup.Provider + "-" + backup.Bucket).Do(func() {
-						takeBackup(name, user, "Started by cron Do function", "remote", backup.Provider, backup.Bucket)
-					}); err != nil {
-						log.Print(err)
-					}
-					if !previousBackupExecuted(lastBackup, "Weekly") {
-
-						takeBackup(name, user, "Started Due to no last run", "remote", backup.Provider, backup.Bucket)
-					}
-				case "Saturday":
-					if _, err = cronInt.Every(1).Weekday(time.Saturday).At(fmt.Sprintf("%s:%s", backup.Time.Hour, backup.Time.Minute)).Tag(name + "-" + backup.Provider + "-" + backup.Bucket).Do(func() {
-						takeBackup(name, user, "Started by cron Do function", "remote", backup.Provider, backup.Bucket)
-					}); err != nil {
-						log.Print(err)
-					}
-					if !previousBackupExecuted(lastBackup, "Weekly") {
-
-						takeBackup(name, user, "Started Due to no last run", "remote", backup.Provider, backup.Bucket)
-					}
-				}
-
-			case "Monthly":
-				day, _ := strconv.Atoi(backup.Time.MonthDay)
-				if _, err = cronInt.Every(1).Month(day).At(fmt.Sprintf("%s:%s", backup.Time.Hour, backup.Time.Minute)).Tag(name + "-" + backup.Provider + "-" + backup.Bucket).Do(func() {
-					takeBackup(name, user, "Started by cron Do function", "remote", backup.Provider, backup.Bucket)
-				}); err != nil {
-					log.Print(err)
-				}
-				if !previousBackupExecuted(lastBackup, "Weekly") {
-
-					takeBackup(name, user, "Started Due to no last run", "remote", backup.Provider, backup.Bucket)
-				}
-			}
+		cron := backup.getCronExpression()
+		if cron == "" {
+			return errors.New("invalid backup frequency")
+		}
+		_, err = cronInt.Cron(cron).Tag(name + "-" + backup.Provider + "-" + backup.Bucket).Do(func() {
+			takeBackup(name, user, "Started by cron Do function", "remote", backup.Provider, backup.Bucket)
+		})
+		if err != nil {
+			log.Print(err)
 		}
 
+		log.Print("Next is Previous function")
+
+		if !previousBackupExecuted(lastBackup, backup.Frequency) {
+			takeBackup(name, user, "Started Due to no last run", "remote", backup.Provider, backup.Bucket)
+		}
 	}
 	if err != nil {
 		return err
@@ -450,10 +257,6 @@ func addRemoteCronJob(backup RemoteBackup, name string, user string, lastBackup 
 func nextrun(c echo.Context) error {
 	_, time := cronInt.NextRun()
 	return c.JSON(http.StatusOK, time)
-}
-
-type MultiBackupType interface {
-	Backup() interface{}
 }
 
 func getLatest(freq string, retention BackupRetention) int {
@@ -617,7 +420,7 @@ func getLocalBackupsList(c echo.Context) error {
 	user := c.Param("user")
 	list, err := LocalBackupsList(name, user)
 	if err != nil {
-		return c.JSON(400, err.Error())
+		return AbortWithErrorMessage(c, err.Error())
 	}
 	return c.JSON(200, list)
 }
@@ -656,7 +459,7 @@ func getRemoteBackupsList(c echo.Context) error {
 	storage := c.Param("storage")
 	list, err := RemoteBackupsList(name, user, storage)
 	if err != nil {
-		return c.JSON(400, err.Error())
+		return AbortWithErrorMessage(c, err.Error())
 	}
 	return c.JSON(200, list)
 }
@@ -921,7 +724,19 @@ func AddRemoteBackupCredentials(c echo.Context) error {
 		}{Field: "provider", Message: "Invalid provider"})
 		return c.JSON(400, json)
 	}
-	backup := RemoteBackup{Provider: data.Provider, Bucket: data.Bucket, Automatic: false, Frequency: "Hourly", LastRun: "", Retention: BackupRetention{Type: "Day", Time: 7}, Time: BackupTime{Hour: "00", Minute: "00", MonthDay: "00", WeekDay: "Sunday"}}
+
+	backup := RemoteBackup{
+		Provider: data.Provider,
+		Bucket:   data.Bucket,
+		Backup: Backup{
+			Automatic: false,
+			Frequency: "Hourly",
+			LastRun:   "",
+			Retention: BackupRetention{Type: "Day", Time: 7},
+			Time:      BackupTime{Hour: "00", Minute: "00", MonthDay: "00", WeekDay: "Sunday"},
+		},
+	}
+
 	for i, site := range obj.Sites {
 		if site.Name == name {
 			remoteExists := false
@@ -970,7 +785,7 @@ func updateRemoteBackup(c echo.Context) error {
 						lastBackup = remote.LastRun
 						err := addRemoteCronJob(*backup, name, user, lastBackup)
 						if err != nil {
-							return c.JSON(400, err.Error())
+							return AbortWithErrorMessage(c, err.Error())
 						}
 						log.Print("next to save backup config")
 						obj.Sites[i].RemoteBackup[remoteIndex] = *backup
@@ -1008,4 +823,37 @@ func updateRemoteBackup(c echo.Context) error {
 		SaveJSONFile()
 		return c.NoContent(200)
 	}
+}
+
+func (backup *Backup) getCronExpression() string {
+	cron := ""
+	if backup.Automatic {
+		switch backup.Frequency {
+		case "Hourly":
+			cron = fmt.Sprintf("%s * * * *", backup.Time.Minute)
+		case "Daily":
+			cron = fmt.Sprintf("%s %s * * *", backup.Time.Minute, backup.Time.Hour)
+		case "Weekly":
+			switch backup.Time.WeekDay {
+			case "Sunday":
+				cron = fmt.Sprintf("%s %s * * 0", backup.Time.Minute, backup.Time.Hour)
+			case "Monday":
+				cron = fmt.Sprintf("%s %s * * 1", backup.Time.Minute, backup.Time.Hour)
+			case "Tuesday":
+				cron = fmt.Sprintf("%s %s * * 2", backup.Time.Minute, backup.Time.Hour)
+			case "Wednesday":
+				cron = fmt.Sprintf("%s %s * * 3", backup.Time.Minute, backup.Time.Hour)
+			case "Thursday":
+				cron = fmt.Sprintf("%s %s * * 4", backup.Time.Minute, backup.Time.Hour)
+			case "Friday":
+				cron = fmt.Sprintf("%s %s * * 5", backup.Time.Minute, backup.Time.Hour)
+			case "Saturday":
+				cron = fmt.Sprintf("%s %s * * 6", backup.Time.Minute, backup.Time.Hour)
+			}
+		case "Monthly":
+			day, _ := strconv.Atoi(backup.Time.MonthDay)
+			cron = fmt.Sprintf("%s %s %s * *", backup.Time.Minute, backup.Time.Hour, day)
+		}
+	}
+	return cron
 }

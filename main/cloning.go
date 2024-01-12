@@ -14,7 +14,7 @@ func siteCloneRequest(c echo.Context) error {
 	c.Bind(&data)
 	dbCred, err := siteClone(*data)
 	if err != nil {
-		return c.JSON(400, err.Error())
+		return AbortWithErrorMessage(c, err.Error())
 	}
 	dbc := make(map[string]string)
 	dbc["name"] = dbCred.Name

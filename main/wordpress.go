@@ -23,7 +23,7 @@ func wpAdd(c echo.Context) error {
 	c.Bind(&wp)
 	f, err := os.OpenFile("/usr/Hosting/error.log", os.O_APPEND|os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
-		c.JSON(400, "Failed to open log file")
+		AbortWithErrorMessage(c, "Failed to open log file")
 	}
 	defer f.Close()
 	if err != nil {
@@ -274,7 +274,7 @@ func getPluginsList(c echo.Context) error {
 	err = json.Unmarshal(plugin, &plugins)
 	if err != nil {
 		fmt.Println(err)
-		return c.JSON(400, "err")
+		return AbortWithErrorMessage(c, "err")
 	}
 	return c.JSON(200, plugins)
 }
@@ -292,7 +292,7 @@ func getThemesList(c echo.Context) error {
 	err = json.Unmarshal(theme, &themes)
 	if err != nil {
 		fmt.Println(err)
-		return c.JSON(400, "err")
+		return AbortWithErrorMessage(c, "err")
 	}
 
 	return c.JSON(200, themes)
@@ -379,7 +379,7 @@ func changeOwnership(c echo.Context) error {
 		}
 	}
 	if _, err := os.Stat(fmt.Sprintf("/home/%s", req.NewUser)); os.IsNotExist(err) {
-		return c.JSON(400, "New user path not found")
+		return AbortWithErrorMessage(c, "New user path not found")
 	}
 
 	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("cp -a /home/%s/%s /home/%s/", req.OldUser, req.Name, req.NewUser)).CombinedOutput()
@@ -442,14 +442,14 @@ func addSiteAuthentication(c echo.Context) error {
 	pass, err := bcrypt.GenerateFromPassword([]byte(req.Auth.Password), 10)
 	if err != nil {
 		log.Println(err.Error())
-		return c.JSON(400, "Failed to generate hash")
+		return AbortWithErrorMessage(c, "Failed to generate hash")
 	}
 	db := fmt.Sprintf("%s:%s", req.Auth.User, pass)
 	err = os.WriteFile(fmt.Sprintf("/usr/local/lsws/conf/vhosts/%s.d/userdb", req.Name), []byte(db), 0660)
 	if err != nil {
 		log.Println(err.Error())
 
-		return c.JSON(400, "Failed to write userdb")
+		return AbortWithErrorMessage(c, "Failed to write userdb")
 	}
 	exec.Command("/bin/bash", "-c", fmt.Sprintf("chown nobody:nogroup /usr/local/lsws/conf/vhosts/%s.d/userdb", req.Name)).Output()
 	realm := fmt.Sprintf(`
@@ -463,7 +463,7 @@ func addSiteAuthentication(c echo.Context) error {
 	if err != nil {
 		log.Println(err.Error())
 
-		return c.JSON(400, "Failed to write realm file")
+		return AbortWithErrorMessage(c, "Failed to write realm file")
 	}
 	out, _ := linuxCommand(fmt.Sprintf("sed -i 's/.*allowBrowse.*/&\\n\\trealm                   auth/' /usr/local/lsws/conf/vhosts/%s.d/modules/context.conf", req.Name))
 	log.Print(string(out))
@@ -533,13 +533,13 @@ func searchAndReplace(c echo.Context) error {
 	c.Bind(&Data)
 	dbname, dbuser, dbpassword, err := getDbcredentials(Data.User, Data.Name)
 	if err != nil {
-		return c.JSON(400, "Failed to get database credentials")
+		return AbortWithErrorMessage(c, "Failed to get database credentials")
 	}
 	out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("php /usr/Hosting/script/srdb.cli.php -h localhost -n %s -u %s -p %s -s %s -r %s", dbname, dbuser, dbpassword, Data.Search, Data.Replace)).CombinedOutput()
 	log.Print(string(out))
 	if err != nil {
 		log.Println(string(out))
-		return c.JSON(400, "Failed to perform serach and replace operation")
+		return AbortWithErrorMessage(c, "Failed to perform serach and replace operation")
 	}
 	return c.JSON(200, "Success")
 }

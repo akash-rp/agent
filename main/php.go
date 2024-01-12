@@ -9,7 +9,10 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"reflect"
+	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/labstack/echo/v4"
 	"gopkg.in/ini.v1"
@@ -30,32 +33,33 @@ func getPHPini(c echo.Context) error {
 	name := c.Param("name")
 	path := fmt.Sprintf("/usr/local/lsws/php-ini/%s/php.ini", name)
 	cfg, err := ini.Load(path)
+	cfg.ValueMapper = parseNumberTillNonInteger
 	if err != nil {
-		return c.JSON(400, "File not found")
+		return AbortWithErrorMessage(c, "File not found")
 	}
 	var php PHP
 	cfg.Section("PHP").MapTo(&php)
-	return c.JSON(http.StatusOK, php)
+	result := convertStringToIntStruct(php)
+	return c.JSON(http.StatusOK, result)
 }
 
 func updatePHPini(c echo.Context) error {
-	php := new(PHPini)
-	c.Bind(&php)
+	phpParsed := new(PhpIniParsed)
+	c.Bind(&phpParsed)
 	name := c.Param("name")
 	path := fmt.Sprintf("/usr/local/lsws/php-ini/%s/php.ini", name)
-
+	php := ConvertPhpIniParsedToPHP(phpParsed)
+	PHPini := &PHPini{php}
 	cfg := ini.Empty()
-	ini.ReflectFrom(cfg, php)
+	err := ini.ReflectFrom(cfg, PHPini)
+	if err != nil {
+		log.Print(err.Error())
+		return c.NoContent(400)
+	}
 	cfg.SaveTo(path)
 	defer exec.Command("/bin/bash", "-c", "service lsws restart").Output()
 	defer exec.Command("/bin/bash", "-c", "killall lsphp").Output()
-	cfg, err := ini.Load(path)
-	if err != nil {
-		return c.JSON(400, "File not found")
-	}
-	var phpGet PHP
-	cfg.Section("PHP").MapTo(&phpGet)
-	return c.JSON(http.StatusOK, phpGet)
+	return getPHPini(c)
 }
 
 func getPHPSettings(c echo.Context) error {
@@ -162,4 +166,60 @@ extprocessor lsphp_%[1]s {
 	}
 	defer exec.Command("/bin/bash", "-c", "service lsws reload; killall lsphp").Output()
 	return getPHPSettings(c)
+}
+
+func parseNumberTillNonInteger(input string) string {
+	runes := []rune(input)
+	var result []rune
+
+	for _, r := range runes {
+		if unicode.IsDigit(r) {
+			result = append(result, r)
+		} else if len(result) == 0 {
+			// If the first character is not a digit, return the original input string
+			return input
+		} else {
+			// Stop parsing when a non-integer character is encountered
+			break
+		}
+	}
+
+	return string(result)
+}
+
+func convertStringToIntStruct(source interface{}) map[string]interface{} {
+	values := reflect.ValueOf(source)
+	types := values.Type()
+
+	result := map[string]interface{}{}
+
+	for i := 0; i < values.NumField(); i++ {
+		if values.Field(i).Type().Name() == "string" {
+			if s, err := strconv.ParseInt(values.Field(i).String(), 10, 32); err == nil {
+				result[types.Field(i).Name] = s
+				continue
+			}
+		}
+		result[types.Field(i).Name] = values.Field(i).Interface()
+	}
+
+	return result
+}
+
+// ConvertPhpIniParsedToPHP converts a PhpIniParsed object to a PHP object
+func ConvertPhpIniParsedToPHP(parsed *PhpIniParsed) PHP {
+	return PHP{
+		MaxExecutionTime:      fmt.Sprintf("%d", parsed.MaxExecutionTime),
+		MaxFileUploads:        fmt.Sprintf("%d", parsed.MaxFileUploads),
+		MaxInputTime:          fmt.Sprintf("%d", parsed.MaxInputTime),
+		MaxInputVars:          fmt.Sprintf("%d", parsed.MaxInputVars),
+		MemoryLimit:           fmt.Sprintf("%dM", parsed.MemoryLimit),
+		PostMaxSize:           fmt.Sprintf("%dM", parsed.PostMaxSize),
+		SessionCookieLifetime: fmt.Sprintf("%d", parsed.SessionCookieLifetime),
+		SessionGcMaxlifetime:  fmt.Sprintf("%d", parsed.SessionGcMaxlifetime),
+		ShortOpenTag:          parsed.ShortOpenTag,
+		UploadMaxFilesize:     fmt.Sprintf("%dM", parsed.UploadMaxFilesize),
+		Timezone:              parsed.Timezone,
+		OpenBaseDir:           parsed.OpenBaseDir,
+	}
 }

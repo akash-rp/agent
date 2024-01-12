@@ -9,16 +9,16 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-func enabelNewrelicRequest(c echo.Context) error {
+func enableNewrelicRequest(c echo.Context) error {
 	conf := new(struct {
 		Duration int `json:"duration"`
 	})
 	c.Bind(&conf)
-	enabelNewrelic(conf.Duration)
+	enableNewrelic(conf.Duration)
 	return c.JSON(200, "success")
 }
 
-func enabelNewrelic(duration int) {
+func enableNewrelic(duration int) {
 	exec.Command("/bin/bash", "-c", "mv /usr/local/lsws/lsphp74/etc/php/7.4/mods-available/newrelic /usr/local/lsws/lsphp74/etc/php/7.4/mods-available/newrelic.ini").Output()
 	exec.Command("/bin/bash", "-c", "mv /usr/local/lsws/lsphp73/etc/php/7.3/mods-available/newrelic /usr/local/lsws/lsphp73/etc/php/7.3/mods-available/newrelic.ini").Output()
 	exec.Command("/bin/bash", "-c", "mv /usr/local/lsws/lsphp72/etc/php/7.2/mods-available/newrelic /usr/local/lsws/lsphp72/etc/php/7.2/mods-available/newrelic.ini").Output()
@@ -59,7 +59,7 @@ func enabelNewrelicPerSite(c echo.Context) error {
 
 	file, err := os.OpenFile(fmt.Sprintf("/usr/local/lsws/conf/vhosts/%s.d/modules/phpini.conf", conf.App), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0750)
 	if err != nil {
-		return c.JSON(400, "Error opening file")
+		return AbortWithErrorMessage(c, "Error opening file")
 	}
 	file.Write([]byte(fmt.Sprintf(`
 phpIniOverride{
@@ -81,7 +81,7 @@ func disableNewrelicPerSite(c echo.Context) error {
 
 	file, err := os.OpenFile(fmt.Sprintf("/usr/local/lsws/conf/vhosts/%s.d/modules/phpini.conf", conf.App), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0750)
 	if err != nil {
-		return c.JSON(400, "Error opening file")
+		return AbortWithErrorMessage(c, "Error opening file")
 	}
 	file.Write([]byte(`
 phpIniOverride{

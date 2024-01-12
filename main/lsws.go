@@ -83,14 +83,14 @@ phpIniOverride{
 	if err != nil {
 		return errors.New("error writing context file")
 	}
-	if err := os.WriteFile(fmt.Sprintf("/usr/local/lsws/conf/vhosts/%s.d/modules/rewrite.conf", wp.AppName), []byte(`
-	rewrite {
-		enable 			 1
-		autoLoadHtaccess 1
-	}
-	`), 0640); err != nil {
-		return errors.New("error writing rewrite conf")
-	}
+	//if err := os.WriteFile(fmt.Sprintf("/usr/local/lsws/conf/vhosts/%s.d/modules/rewrite.conf", wp.AppName), []byte(`
+	//rewrite {
+	//	enable 			 1
+	//	autoLoadHtaccess 1
+	//}
+	//`), 0640); err != nil {
+	//	return errors.New("error writing rewrite conf")
+	//}
 	if err := os.Chown(fmt.Sprintf("%s/%s.d/modules/extphp.conf", RootPath, wp.AppName), userID, grpId); err != nil {
 		return errors.New("extphp permission error")
 	}
@@ -100,9 +100,9 @@ phpIniOverride{
 	if err := os.Chown(fmt.Sprintf("%s/%s.d/main.conf", RootPath, wp.AppName), userID, grpId); err != nil {
 		return errors.New("main conf permission error")
 	}
-	if err := os.Chown(fmt.Sprintf("%s/%s.d/modules/rewrite.conf", RootPath, wp.AppName), userID, grpId); err != nil {
-		return errors.New("rewrite conf permission error")
-	}
+	//if err := os.Chown(fmt.Sprintf("%s/%s.d/modules/rewrite.conf", RootPath, wp.AppName), userID, grpId); err != nil {
+	//	return errors.New("rewrite conf permission error")
+	//}
 	if err := os.Chown(fmt.Sprintf("%s/%s.d/modules/context.conf", RootPath, wp.AppName), userID, grpId); err != nil {
 		return errors.New("context conf permission error")
 	}
@@ -156,7 +156,7 @@ func addDomainConf(Domain Domain, appName string) error {
 		return errors.New("error creating domain directory")
 	}
 	var confUrl string
-	if Domain.IsSubDomain {
+	if Domain.SubDomain {
 		confUrl = Domain.Url
 	} else {
 		confUrl = Domain.Url + ", " + "www." + Domain.Url

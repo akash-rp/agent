@@ -18,7 +18,7 @@ func updateipdeny(c echo.Context) error {
 	if len(conf.Ip) > 0 {
 		file, err := os.OpenFile(fmt.Sprintf("/usr/local/lsws/conf/vhosts/%s.d/modules/accessdeny.conf", conf.App), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0750)
 		if err != nil {
-			return c.JSON(400, "File error")
+			return AbortWithErrorMessage(c, "File error")
 		}
 		ipstring := strings.Join(conf.Ip, ", ")
 		file.Write([]byte(fmt.Sprintf(`

@@ -1,7 +1,9 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"net/http"
 	"os/exec"
 	"strings"
 
@@ -10,114 +12,130 @@ import (
 
 func getServiceStatus(c echo.Context) error {
 
-	service := serviceStatus()
+	service := servicesStatus()
 	return c.JSON(200, service)
 }
 
-func serviceStatus() []SingleService {
-
-	service := new(struct {
-		Service []SingleService `json:"service"`
-	})
-	status, _ := exec.Command("/bin/bash", "-c", "systemctl check lsws mariadb lsmcd redis newrelic-daemon").Output()
-	statusArray := strings.Split(string(status), "\n")
-	if statusArray[0] == "active" {
-		service.Service = append(service.Service, SingleService{Service: "Litespeed", Running: true, Process: "lsws"})
-	} else {
-		service.Service = append(service.Service, SingleService{Service: "Litespeed", Running: false, Process: "lsws"})
-
-	}
-	service.Service = append(service.Service, SingleService{Service: "PHP", Running: true, Process: "lsphp"})
-	if statusArray[1] == "active" {
-		service.Service = append(service.Service, SingleService{Service: "Mariadb", Running: true, Process: "mariadb"})
-
-	} else {
-		service.Service = append(service.Service, SingleService{Service: "Mariadb", Running: false, Process: "mariadb"})
-
-	}
-	if statusArray[2] == "active" {
-		service.Service = append(service.Service, SingleService{Service: "Memcached", Running: true, Process: "lsmcd"})
-
-	} else {
-		service.Service = append(service.Service, SingleService{Service: "Memcached", Running: false, Process: "lsmcd"})
-	}
-	if statusArray[3] == "active" {
-		service.Service = append(service.Service, SingleService{Service: "Redis", Running: true, Process: "redis"})
-	} else {
-		service.Service = append(service.Service, SingleService{Service: "Redis", Running: false, Process: "redis"})
-	}
-	if statusArray[4] == "active" {
-		service.Service = append(service.Service, SingleService{Service: "New Relic", Running: true, Process: "newrelic-daemon"})
-	} else {
-		service.Service = append(service.Service, SingleService{Service: "New Relic", Running: false, Process: "newrelic-daemon"})
-	}
-	return service.Service
+func isServiceActive(status string) bool {
+	return status == "active"
 }
 
-func serviceRestart(c echo.Context) error {
-	service := c.Param("service")
-	if service == "lsphp" {
-		exec.Command("/bin/bash", "-c", "killall lsphp").Output()
-		service := serviceStatus()
-		return c.JSON(200, service)
+func singleServiceStatus(serviceName, processName, status string) SingleService {
+	return SingleService{
+		Service: serviceName,
+		Running: isServiceActive(status),
+		Process: processName,
 	}
+}
+
+func servicesStatus() []SingleService {
+	cmd := exec.Command("/bin/bash", "-c", "systemctl check lsws lsws mariadb lsmcd redis newrelic-daemon")
+	output, _ := cmd.Output()
+	statusArray := strings.Split(strings.TrimSpace(string(output)), "\n")
+
+	var serviceList []SingleService
+
+	var services = []struct {
+		name    string
+		process string
+		status  string
+	}{
+		{"Litespeed", "lsws", ""},
+		{"PHP", "lsphp", ""},
+		{"Mariadb", "mariadb", ""},
+		{"Memcached", "lsmcd", ""},
+		{"Redis", "redis", ""},
+		{"New Relic", "newrelic-daemon", ""},
+	}
+
+	for i, service := range services {
+		serviceList = append(serviceList, singleServiceStatus(service.name, service.process, statusArray[i]))
+	}
+
+	return serviceList
+}
+
+func manageService(c echo.Context) error {
+	service := new(ServiceAction)
+
+	c.Bind(&service)
+
+	switch service.Action {
+	case "restart":
+		if service.Service == "lsphp" {
+			exec.Command("/bin/bash", "-c", "killall lsphp").Output()
+		} else {
+			if err := restartService(service.Service); err != nil {
+				return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+			}
+		}
+		return c.JSON(http.StatusOK, servicesStatus())
+
+	case "stop":
+		if service.Service == "newrelic-daemon" {
+			disableNewrelic()
+		} else {
+			if err := stopService(service.Service); err != nil {
+				return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+			}
+		}
+		return c.JSON(http.StatusOK, servicesStatus())
+
+	case "start":
+		if service.Service == "newrelic-daemon" {
+			enableNewrelic(0)
+		} else {
+			if err := startService(service.Service); err != nil {
+				return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+			}
+		}
+		return c.JSON(http.StatusOK, servicesStatus())
+
+	default:
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid action")
+	}
+}
+
+func restartService(service string) error {
 	serviceList := []string{"lsws", "mariadb", "redis", "lsmcd", "newrelic-daemon"}
+	fmt.Print(service)
 	for _, ser := range serviceList {
 		if ser == service {
 			_, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("service %s restart", ser)).Output()
-			service := serviceStatus()
 			if err != nil {
-				return c.JSON(400, "Failed to restart service")
-			} else {
-				return c.JSON(200, service)
+				return errors.New("failed to restart service")
 			}
+			return nil
 		}
 	}
-	return c.JSON(400, "Service not found")
+	return errors.New("service not found")
 }
 
-func serviceStop(c echo.Context) error {
-	service := c.Param("service")
+func stopService(service string) error {
 	serviceList := []string{"redis", "lsmcd", "newrelic-daemon"}
 	for _, ser := range serviceList {
 		if ser == service {
-			if ser == "newrelic-daemon" {
-				disableNewrelic()
-				service := serviceStatus()
-				return c.JSON(200, service)
-			}
 			_, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("service %s stop", ser)).Output()
-			service := serviceStatus()
-
 			if err != nil {
-				return c.JSON(400, "Failed to stop service")
-			} else {
-				return c.JSON(200, service)
+				return errors.New("failed to stop service")
 			}
+			return nil
 		}
 	}
-	return c.JSON(400, "Service not found")
+	return errors.New("service not found")
 }
 
-func serviceStart(c echo.Context) error {
-	service := c.Param("service")
-	if service == "newrelic-daemon" {
-		enabelNewrelic(0)
-		service := serviceStatus()
-		return c.JSON(200, service)
-	}
-	serviceList := []string{"redis", "lsmcd"}
+func startService(service string) error {
+	serviceList := []string{"lsws", "mariadb", "redis", "lsmcd"}
 	for _, ser := range serviceList {
 		if ser == service {
 			_, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("service %s start", ser)).Output()
-			service := serviceStatus()
-
 			if err != nil {
-				return c.JSON(400, "Failed to start service")
-			} else {
-				return c.JSON(200, service)
+				fmt.Print("error occurred while starting service")
+				return errors.New("failed to start service")
 			}
+			return nil
 		}
 	}
-	return c.JSON(400, "Service not found")
+	return errors.New("service not found")
 }

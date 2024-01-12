@@ -30,7 +30,7 @@ func getUfwRules(c echo.Context) error {
 	if err != nil {
 		log.Print("First")
 		log.Print(string(out))
-		return c.JSON(400, err.Error())
+		return AbortWithErrorMessage(c, err.Error())
 	}
 	log.Print(string(out))
 	ufw := new(Ufw)
@@ -38,7 +38,7 @@ func getUfwRules(c echo.Context) error {
 	if err != nil {
 		log.Print("Second")
 
-		return c.JSON(400, err.Error())
+		return AbortWithErrorMessage(c, err.Error())
 	}
 	return c.JSON(200, ufw)
 }
@@ -79,15 +79,24 @@ type addRules struct {
 func addUfwRules(c echo.Context) error {
 
 	rule := new(addRules)
-	c.Bind(&rule)
-	add := generateUfwRule(*rule)
-	_, err := exec.Command("/bin/bash", "-c", add).Output()
+	err := c.Bind(&rule)
 	if err != nil {
 		log.Print(err.Error())
 		return c.NoContent(400)
 	}
-	return getUfwRules(c)
 
+	log.Print("genetate ufw")
+	add := generateUfwRule(*rule)
+	log.Print("genetated ufw wefwefw")
+	log.Print(add)
+
+	_, err = exec.Command("/bin/bash", "-c", add).Output()
+	if err != nil {
+		log.Print(add)
+		log.Print(err.Error())
+		return c.NoContent(400)
+	}
+	return getUfwRules(c)
 }
 
 func generateUfwRule(rule addRules) string {

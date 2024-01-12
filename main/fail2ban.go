@@ -14,7 +14,7 @@ func getBannedIpList(c echo.Context) error {
 	ips, err := exec.Command("/bin/bash", "-c", "fail2ban-client get sshd banned").Output()
 	log.Print(ips)
 	if err != nil {
-		return c.JSON(400, "something went wrong")
+		return AbortWithErrorMessage(c, "something went wrong")
 	}
 	str := strings.ReplaceAll(string(ips), "'", "\"")
 
@@ -23,7 +23,7 @@ func getBannedIpList(c echo.Context) error {
 	if err != nil {
 		log.Print(err.Error())
 		log.Print("Unmarshal error")
-		return c.JSON(400, "something went wrong")
+		return AbortWithErrorMessage(c, "something went wrong")
 	}
 	return c.JSON(200, obj)
 }

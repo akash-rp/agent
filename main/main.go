@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"github.com/labstack/echo/v4"
+	"github.com/panjf2000/ants/v2"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -10,7 +12,6 @@ import (
 	"time"
 
 	"github.com/go-co-op/gocron"
-	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/nakabonne/tstorage"
 )
@@ -23,89 +24,28 @@ var metrics, _ = tstorage.NewStorage(
 	tstorage.WithWALBufferedSize(0),
 )
 
+var sslIssuer, _ = ants.NewPool(1, ants.WithNonblocking(true))
+
 // var jobMap = make(map[string]*gocron.Job)
 
 func main() {
+	defer sslIssuer.Release()
 	e := echo.New()
 	e.Debug = true
 
 	// Middleware
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
+
 	data, err := ioutil.ReadFile("/usr/Hosting/config.json")
 	if err != nil {
 		log.Fatal("Cannot read file")
 	}
+
 	json.Unmarshal(data, &obj)
 	initCron()
-	e.GET("/serverstats", serverStats)
-	e.POST("/wp/add", wpAdd)
-	e.POST("/wp/delete", wpDelete)
-	e.POST("/cert/add", addSslCert)
-	e.GET("/cert/list/:name", listCertificates)
-	e.GET("/sites", getSites)
-	e.POST("/domain/add", addDomain)
-	e.POST("/domain/delete", deleteDomain)
-	e.POST("/domain/wildcard/add", addWildcard)
-	e.POST("/domain/wildcard/remove", removeWildcard)
-	e.POST("/changeprimary", changePrimary)
-	e.POST("/changePHP", changePHP)
-	e.GET("/getPHPini/:name", getPHPini)
-	e.POST("/updatePHPini/:name", updatePHPini)
-	e.GET("/getPHPsettings/:name", getPHPSettings)
-	e.POST("/updatePHPsettings/:name", updatePHPsettings)
-	e.POST("/updatelocalbackup/:name/:user", updateLocalBackupReq)
-	e.POST("/updateremotebackup/:name/:user", updateRemoteBackup)
-	e.POST("/takeondemandbackup/:name/:user/:type", ondemadBackup)
-	e.GET("/localbackup/nextrun", nextrun)
-	e.GET("/localbackup/list/:name/:user", getLocalBackupsList)
-	e.GET("/remotebackup/list/:name/:user/:storage", getRemoteBackupsList)
-	e.POST("/restorebackup", restoreBackupFromPanel)
-	e.GET("/createstaging/:name/:user/:url/:livesiteurl", createStaging)
-	e.GET("/getdbtables/:name/:user", getDatabaseTables)
-	e.POST("/syncChanges", syncChanges)
-	e.GET("/deleteStaging/:name/:user", deleteStagingSite)
-	e.POST("/deleteSite", wpDelete)
-	e.GET("/sshkey", getSshKeys)
-	e.POST("/sshKey/add", addSSHkey)
-	e.POST("/sshKey/remove", removeSSHkey)
-	e.GET("/plugin/list/:user/:name", getPluginsList)
-	e.GET("/theme/list/:user/:name", getThemesList)
-	e.POST("/ptoperation/:user/:name", updatePluginsThemes)
-	// e.POST("/enforceHttps", enforceHttps)
-	e.POST("/update7G", update7G)
-	e.POST("/updateModsecurity", updateModsecurity)
-	e.POST("/newrelic/enable", enabelNewrelicRequest)
-	e.POST("/newrelic/enableSite", enabelNewrelicPerSite)
-	e.POST("/newrelic/disable", disableNewrelicRequest)
-	e.POST("/newrelic/disableSite", disableNewrelicPerSite)
-	e.GET("/service/status", getServiceStatus)
-	e.POST("/service/restart/:service", serviceRestart)
-	e.POST("/service/stop/:service", serviceStop)
-	e.POST("/service/start/:service", serviceStart)
-	e.POST("/geoip/enable/:site", enableGeoip)
-	e.POST("/geoip/disable/:site", disableGeoip)
-	e.POST("/ipdeny", updateipdeny)
-	e.GET("/metrics", getAllMetrics)
-	e.GET("/metrics/:metric/:period", getMetrics)
-	e.GET("/ssh/users", getSshUsersSession)
-	e.POST("/ssh/kill", killSshSession)
-	e.GET("/ufw/rules", getUfwRules)
-	e.POST("/ufw/delete", deleteUfwRules)
-	e.POST("/ufw/add", addUfwRules)
-	e.GET("/fail2ban/ip", getBannedIpList)
-	e.POST("/fail2ban/unban", unbanIp)
-	e.GET("/users", getSystemUsers)
-	e.POST("/users/changePassword", changeUserPassword)
-	e.POST("/users/delete", deleteSystemUser)
-	e.POST("/changeOwner", changeOwnership)
-	e.POST("/site/auth/add", addSiteAuthentication)
-	e.POST("/site/auth/delete/:name", deleteSiteAuthentication)
-	e.POST("/site/fixPermission", fixFilePermissionRequest)
-	e.POST("/searchAndReplace", searchAndReplace)
-	e.POST("/site/clone", siteCloneRequest)
-	e.GET("/site/backup/download/:mode/:id", BackupDownload)
-	e.POST("/backup/remote/add/:name", AddRemoteBackupCredentials)
+	addRoutes(e)
+
 	e.Logger.Fatal(e.Start(":8081"))
 }
 

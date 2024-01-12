@@ -30,7 +30,7 @@ func update7G(c echo.Context) error {
 				if err != nil {
 					log.Print(string(out))
 					log.Print(err.Error())
-					return c.JSON(400, "Error")
+					return AbortWithErrorMessage(c, "Error")
 				}
 			case "request":
 				exec.Command("/bin/bash", "-c", fmt.Sprintf("sed -i '/REQUEST URI/,/END REQUEST URI/d' %s", path)).Output()
@@ -52,7 +52,7 @@ func update7G(c echo.Context) error {
 
 		file, err := os.OpenFile(fmt.Sprintf("/usr/local/lsws/conf/vhosts/%s.d/modules/rewrite.conf", conf.App), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
 		if err != nil {
-			return c.JSON(400, "Unable to open file")
+			return AbortWithErrorMessage(c, "Unable to open file")
 		}
 		file.Write([]byte(`
 rewrite {
@@ -64,7 +64,7 @@ rewrite {
 
 		return c.JSON(200, "Success")
 	}
-	return c.JSON(400, "Something went wrong")
+	return AbortWithErrorMessage(c, "Something went wrong")
 }
 
 func updateModsecurity(c echo.Context) error {
@@ -79,20 +79,20 @@ func updateModsecurity(c echo.Context) error {
 	switch conf.Enabled {
 	case true:
 		if conf.ParanoiaLevel <= 0 && conf.ParanoiaLevel > 4 && conf.AnomalyThreshold < 5 && conf.AnomalyThreshold > 100 {
-			return c.JSON(400, "Invalid levels")
+			return AbortWithErrorMessage(c, "Invalid levels")
 		}
 		err := os.MkdirAll(fmt.Sprintf("/usr/local/lsws/conf/vhosts/%s.d/modules/modsecurity.d/", conf.App), 0750)
 		if err != nil {
-			return c.JSON(400, "Error creating folder")
+			return AbortWithErrorMessage(c, "Error creating folder")
 		}
 		out, err := exec.Command("/bin/bash", "-c", fmt.Sprintf("cp -r /usr/Hosting/firewall/coreruleset /usr/local/lsws/conf/vhosts/%s.d/modules/modsecurity.d/", conf.App)).CombinedOutput()
 		if err != nil {
 			log.Print(out)
-			return c.JSON(400, "Error copying coreruleset")
+			return AbortWithErrorMessage(c, "Error copying coreruleset")
 		}
 		file, err := os.OpenFile(fmt.Sprintf("/usr/local/lsws/conf/vhosts/%s.d/modules/modsecurity.d/main.conf", conf.App), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
 		if err != nil {
-			return c.JSON(400, "Error writing main file")
+			return AbortWithErrorMessage(c, "Error writing main file")
 		}
 		file.Write([]byte(fmt.Sprintf(`
 include /usr/local/lsws/conf/vhosts/%[1]s.d/modules/modsecurity.d/coreruleset/crs-setup.conf
@@ -101,7 +101,7 @@ include /usr/local/lsws/conf/vhosts/%[1]s.d/modules/modsecurity.d/coreruleset/ru
 		file.Close()
 		modsec, err := os.OpenFile(fmt.Sprintf("/usr/local/lsws/conf/vhosts/%s.d/modules/modsecurity.conf", conf.App), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
 		if err != nil {
-			return c.JSON(400, "Error writing Modsec file")
+			return AbortWithErrorMessage(c, "Error writing Modsec file")
 		}
 		modsec.Write([]byte(fmt.Sprintf(`
 module mod_security {
@@ -129,5 +129,5 @@ module mod_security {
 
 		return c.JSON(200, "Success")
 	}
-	return c.JSON(400, "Invalid Request")
+	return AbortWithErrorMessage(c, "Invalid Request")
 }

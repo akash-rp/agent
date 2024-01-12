@@ -157,7 +157,7 @@ func getDatabaseTables(c echo.Context) error {
 func syncChanges(c echo.Context) error {
 	var sync SyncChanges
 	if err := c.Bind(&sync); err != nil {
-		return c.JSON(400, err.Error())
+		return AbortWithErrorMessage(c, err.Error())
 	}
 	var live string
 	if sync.From.Type == "live" {
@@ -181,7 +181,7 @@ func syncChanges(c echo.Context) error {
 		if syncType == "files" {
 			err := syncCopyFiles(sync, logFile)
 			if err != nil {
-				restoreBackup(sync.To.Name, sync.To.User, latestBackup, "webapp", "ondemand","","")
+				restoreBackup(sync.To.Name, sync.To.User, latestBackup, "webapp", "ondemand", "", "")
 				return c.JSON(404, "Failed to copy files")
 			}
 		} else if syncType == "db" {
@@ -190,7 +190,7 @@ func syncChanges(c echo.Context) error {
 			if err != nil {
 				deleteDatabaseDump(sync.From.User, sync.From.Name)
 				if shouldRestore {
-					restoreBackup(sync.To.Name, sync.To.User, latestBackup, "db", "ondemand","","")
+					restoreBackup(sync.To.Name, sync.To.User, latestBackup, "db", "ondemand", "", "")
 				}
 				return c.JSON(404, "Failed to sync DB")
 			}

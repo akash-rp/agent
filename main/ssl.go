@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"github.com/labstack/echo/v4"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -13,7 +14,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
 )
 
 func addSslCert(c echo.Context) error {
@@ -21,20 +21,27 @@ func addSslCert(c echo.Context) error {
 	c.Bind(&conf)
 	switch conf.Challenge {
 	case "http-01":
-		err := webroot(*conf)
+		err := sslIssuer.Submit(func() {
+			error := webroot(*conf)
+			if error != nil {
+				http.Post(Backend + "")
+			} else {
+
+			}
+		})
 		if err != nil {
-			return c.JSON(400, err.Error())
+			return AbortWithErrorMessage(c, "failed to start ssl issuer")
 		}
 		return c.JSON(200, "Success")
 	case "dns-01":
 		err := dnsApi(*conf)
 		if err != nil {
-			return c.JSON(400, err.Error())
+			return AbortWithErrorMessage(c, err.Error())
 		}
 		return c.JSON(200, "success")
 
 	}
-	return c.JSON(400, "Something went wrong")
+	return AbortWithErrorMessage(c, "Something went wrong")
 }
 
 // func reissueSslCert(c echo.Context) error {
@@ -44,11 +51,11 @@ func addSslCert(c echo.Context) error {
 // 	case "webroot":
 // 		err := webroot(*conf)
 // 		if err != nil {
-// 			return c.JSON(400, err.Error())
+// 			return AbortWithErrorMessage(c, err.Error())
 // 		}
 // 		return c.JSON(200, "success")
 // 	}
-// 	return c.JSON(400, "Something went wrong")
+// 	return AbortWithErrorMessage(c, "Something went wrong")
 // }
 
 func resolveDomain(conf sslConf) error {
@@ -70,11 +77,11 @@ func resolveDomain(conf sslConf) error {
 		if err != nil {
 			log.Print(err.Error())
 			log.Print(domain)
-			return errors.New("domains not resolved")
+			return errors.New("domain is not pointing to the server")
 		}
 		body, _ := ioutil.ReadAll(res.Body)
 		if string(body) != id.String() {
-			return errors.New("domains Not resolves")
+			return errors.New("Failed to verify domain. Invalid ID")
 		}
 		linuxCommand(fmt.Sprintf("rm /home/%s/%s/public/.sslresolve", conf.User, conf.App))
 		time.Sleep(1 * time.Second)
@@ -85,36 +92,12 @@ func resolveDomain(conf sslConf) error {
 func configureDomainForSSl(AppName string, Domain string) {
 	file, _ := os.OpenFile(fmt.Sprintf("/usr/local/lsws/conf/vhosts/%s.d/domain/%s.ssl", AppName, Domain), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0750)
 
-	// virtualhost %[1]s {
-	// 	listeners http, https
-
-	// 	vhDomain                  %[1]s
-
-	// 	rewrite  {
-	// 	  enable                  1
-	// 	  autoLoadHtaccess        1
-
-	// 	  RewriteCond %%{HTTP:CF-Visitor} '"scheme":"http"' [OR]
-	// 	  RewriteCond %%{HTTPS} !=on
-	// 	  RewriteRule ^(.*)$ - [env=proto:http]
-	// 	  RewriteCond %%{HTTP:CF-Visitor} '"scheme":"https"' [OR]
-	// 	  RewriteCond %%{HTTPS} =on
-	// 	  RewriteRule ^(.*)$ - [env=proto:https]
-
-	//   # Redirect http -> https
-	//   RewriteCond %%{HTTPS} off
-	//   RewriteRule (.*) https://%%{HTTP_HOST}%%{REQUEST_URI} [R=301,L]
-
-	// 	}
-	// 	include /usr/local/lsws/conf/vhosts/%[3]s.d/main.conf
-	// }
-
 	file.Write([]byte(fmt.Sprintf(`
 # Editing this file manually might change litespeed behavior,
 # Make sure you know what are you doing
   vhssl {
-    keyFile                 /etc/letsencrypt/live/%[1]s/privkey.pem
-    certFile                /etc/letsencrypt/live/%[1]s/fullchain.pem
+    keyFile                 /etc/certs/%[1]s/key.pem
+    certFile                /etc/certs/%[1]s/cert.pem
     certChain               1
     enableECDHE             1
     enableStapling          1
@@ -127,26 +110,39 @@ func configureDomainForSSl(AppName string, Domain string) {
 }
 
 func webroot(conf sslConf) error {
+	f, _ := os.OpenFile("/var/log/hosting/ssl.log", os.O_APPEND|os.O_RDWR|os.O_CREATE, 0600)
+	defer f.Close()
+
+	f.WriteString("\n--------------------------------------------------------------------------------------\n")
+	f.WriteString(fmt.Sprintf("Issuing SSL certs for %[1]s \n", strings.Join(conf.Domains, ", ")))
+
 	err := resolveDomain(conf)
 	if err != nil {
+		f.WriteString("Failed to resolve domain. Please make sure that the domain points to the server")
 		linuxCommand(fmt.Sprintf("rm /home/%s/%s/public/.sslresolve", conf.User, conf.App))
 		return err
 	}
-	out, err := linuxCommand(fmt.Sprintf(" certbot certonly --cert-name %[1]s -d %[2]s --agree-tos --webroot -w /home/%[3]s/%[4]s/public/ -n --email akashrp@outlook.com --force-renewal --dry-run", conf.Domain, strings.Join(conf.Domains, ","), conf.User, conf.App))
+
+	out, err := linuxCommand(fmt.Sprintf("acme.sh --issue -d %[2]s -w /home/%[3]s/%[4]s/public/ -reloadcmd \"service lsws reload\"", strings.Join(conf.Domains, " -d "), conf.User, conf.App))
 	if err != nil {
-		log.Print(string(out))
-		return errors.New("dry Run Failed")
-	}
-	provider := ""
-	if conf.Provider == "Zerossl" {
-		provider = "--eab-kid sGecNMFE7aXC7HSG12j12g --eab-hmac-key 6Js6yb2xl0Km3KMLekm7YRP974gpcbCheHkIAMWig6BPt8RGisjuiSgh88aULztjFJaf8PzPnppkdoiiB6tMqA --server https://acme.zerossl.com/v2/DV90"
-	}
-	out, err = linuxCommand(fmt.Sprintf(" certbot certonly --cert-name %[1]s -d %[2]s --agree-tos --webroot -w /home/%[3]s/%[4]s/public/ -n --email akashrp@outlook.com --force-renewal %[5]s", conf.Domain, strings.Join(conf.Domains, ","), conf.User, conf.App, provider))
-	if err != nil {
-		log.Print(string(out))
+		f.Write(out)
 		return errors.New("failed to issue certificate")
 	}
+
+	out, err = linuxCommand(fmt.Sprintf("mkdir /etc/certs/%[1]s", conf.Domains[0]))
+	if err != nil {
+		f.Write(out)
+		return errors.New("failed to create cert directory")
+	}
+
+	out, err = linuxCommand(fmt.Sprintf("acme.sh --install-cert -d %[1]s --key-file /etc/certs/%[2]s/key.pem --fullchain-file /etc/certs/%[2]s/cert.pem -reloadcmd \"service lsws reload\"", strings.Join(conf.Domains, " -d "), conf.Domains[0]))
+	if err != nil {
+		f.Write(out)
+		return errors.New("failed to install certificate")
+	}
+
 	configureDomainForSSl(conf.App, conf.Domain)
+	f.WriteString("SSL issued successfully")
 	return nil
 }
 

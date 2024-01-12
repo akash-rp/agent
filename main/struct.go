@@ -117,23 +117,23 @@ type errJson struct {
 // }
 
 type Domain struct {
-	Url         string `json:"url"`
-	IsSubDomain bool   `json:"isSubDomain"`
-	Routing     string `json:"routing"`
-	IsWildcard  bool   `json:"isWildcard"`
-	Type        string `json:"type"`
+	Url       string `json:"url"`
+	SubDomain bool   `json:"subDomain"`
+	Routing   string `json:"routing"`
+	Wildcard  bool   `json:"wildcard"`
+	Type      int    `json:"type"`
 }
 
 type DomainConf struct {
-	Domain   Domain `json:"domain"`
-	SiteName string `json:"site"`
+	Domain   Domain `json:"domain" validate:"required"`
+	SiteName string `json:"site" validate:"required"`
 }
 
 type PrimaryChange struct {
-	Name     string `json:"name"`
-	MainUrl  string `json:"mainUrl"`
-	AliasUrl string `json:"aliasUrl"`
-	User     string `json:"user"`
+	Name           string `json:"name"`
+	CurrentPrimary string `json:"currentPrimary"`
+	NewPrimary     string `json:"newPrimary"`
+	User           string `json:"user"`
 }
 
 type PHPChange struct {
@@ -154,6 +154,21 @@ type PHP struct {
 	SessionGcMaxlifetime  string `ini:"session.gc_maxlifetime"`
 	ShortOpenTag          string `ini:"short_open_tag"`
 	UploadMaxFilesize     string `ini:"upload_max_filesize"`
+	Timezone              string `ini:"date.timezone"`
+	OpenBaseDir           string `ini:"open_basedir"`
+}
+
+type PhpIniParsed struct {
+	MaxExecutionTime      int    `ini:"max_execution_time"`
+	MaxFileUploads        int    `ini:"max_file_uploads"`
+	MaxInputTime          int    `ini:"max_input_time"`
+	MaxInputVars          int    `ini:"max_input_vars"`
+	MemoryLimit           int    `ini:"memory_limit"`
+	PostMaxSize           int    `ini:"post_max_size"`
+	SessionCookieLifetime int    `ini:"session.cookie_lifetime"`
+	SessionGcMaxlifetime  int    `ini:"session.gc_maxlifetime"`
+	ShortOpenTag          string `ini:"short_open_tag"`
+	UploadMaxFilesize     int    `ini:"upload_max_filesize"`
 	Timezone              string `ini:"date.timezone"`
 	OpenBaseDir           string `ini:"open_basedir"`
 }
@@ -216,13 +231,9 @@ type Backup struct {
 }
 
 type RemoteBackup struct {
-	Provider  string          `json:"provider"`
-	Bucket    string          `json:"bucket"`
-	Automatic bool            `json:"automatic"`
-	Frequency string          `json:"frequency"`
-	Time      BackupTime      `json:"time"`
-	Retention BackupRetention `json:"retention"`
-	LastRun   string          `json:"lastrun"`
+	Provider string `json:"provider"`
+	Bucket   string `json:"bucket"`
+	Backup
 }
 
 type BackupTime struct {
@@ -273,8 +284,10 @@ type SyncChanges struct {
 }
 
 type SSH struct {
-	Key  string `json:"key"`
-	User string `json:"user"`
+	Key       string `json:"key"`
+	User      string `json:"user"`
+	Label     string `json:"label"`
+	Timestamp int    `json:"timestamp"`
 }
 
 type PluginsThemesOperation struct {
@@ -329,4 +342,27 @@ type AuthorizedKey struct {
 	Key       string
 	Label     string
 	Timestamp int64
+}
+
+type ServiceAction struct {
+	Action  string `json:"action"`
+	Service string `json:"service"`
+}
+
+type UpdateWildcardResp struct {
+	Domain struct {
+		Url       string `json:"url" validation:"required"`
+		Wildcard  bool   `json:"wildcard" validation:"required"`
+		Subdomain bool   `json:"subdomain" validation:"required"`
+	}
+	Site string `json:"site"`
+}
+
+type DeleteDomain struct {
+	Domain string `json:"domain" validation:"required"`
+	Site   string `json:"site" validation:"required"`
+}
+
+type Error struct {
+	Message string `json:"message"`
 }
