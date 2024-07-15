@@ -1,0 +1,10 @@
+101 - Required files are not defined (AppName,url,username,title,email,password,system user)
+102 - App Name exists (app name exists for the system user provided)
+103 - Error while creating database
+104 - Error while creating folder for wordpress (mkdir,chown)
+105 - Error while downloading wordpress (network error)
+106 - Error while editing wp-config file
+107 - Cannot install wordpress
+108 - lsws config error
+109 - error while adding site to json
+110 - nuster error

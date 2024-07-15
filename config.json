@@ -1,0 +1,15 @@
+{
+  "global": {
+    "dataSize": 100,
+    "maxConnection": 50000
+  },
+  "defaults": {
+    "timeout": {
+      "connect": 30,
+      "client": 30,
+      "server": 30
+    }
+  },
+  "sites": [],
+  "ssl": false
+}
